@@ -46,3 +46,4 @@ dipakai di sisi serverless (`/api`) — tidak pernah dikirim ke halaman web.
 2. Hanya kunci publishable/anon yang menyentuh frontend. Kunci rahasia khusus serverless.
 3. Akses terkunci (login Supabase Auth). Pendaftaran publik dimatikan.
 4. Hak akses sekecil mungkin — pakai kunci read-only di mana memungkinkan.
+5. deploy
