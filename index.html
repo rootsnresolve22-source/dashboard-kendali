@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Kendali — Pemantau Tech Stack</title>
+<meta name="description" content="Dashboard Kendali — pemantau layanan teknologi rempangops.com" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f4f2ee;
+    --border: #e7e4dd;
+    --border-strong: #d8d4ca;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4845;
+    --ink-dim: #8c887f;
+    --accent: #3d4a7a;
+    --accent-soft: #eef0f7;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --idle: #b6b2a8;
+    --shadow-sm: 0 1px 2px rgba(26,26,26,.04), 0 1px 3px rgba(26,26,26,.06);
+    --shadow-md: 0 4px 16px rgba(26,26,26,.06), 0 2px 6px rgba(26,26,26,.04);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --maxw: 1080px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Public Sans', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    /* tekstur kalem: butiran halus + gradien hangat sangat lembut */
+    background-image:
+      radial-gradient(900px 500px at 88% -8%, rgba(61,74,122,.05), transparent 60%),
+      radial-gradient(700px 460px at -6% 108%, rgba(217,119,6,.035), transparent 55%);
+    background-attachment: fixed;
+  }
+  .serif { font-family: 'Fraunces', Georgia, serif; }
+
+  /* ====== LAYAR (screen) ====== */
+  .screen { display: none; min-height: 100dvh; }
+  .screen.active { display: block; }
+
+  /* ====== LOADING awal ====== */
+  #screen-boot.active { display: flex; align-items: center; justify-content: center; min-height: 100dvh; }
+  .boot-card { text-align: center; opacity: .9; }
+  .spinner {
+    width: 30px; height: 30px; margin: 0 auto 14px;
+    border: 2.5px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ====== LOGIN ====== */
+  #screen-login.active { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 24px; }
+  .login-wrap { width: 100%; max-width: 392px; animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+  .brand-mark { display: flex; align-items: center; gap: 11px; justify-content: center; margin-bottom: 26px; }
+  .brand-dot {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(150deg, var(--accent), #5566a3);
+    display: grid; place-items: center; box-shadow: var(--shadow-sm);
+    flex: none;
+  }
+  .brand-dot svg { width: 19px; height: 19px; }
+  .brand-name { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+  .brand-name .sub { display: block; font-family: 'Public Sans'; font-size: 11px; font-weight: 500; color: var(--ink-dim); letter-spacing: .02em; margin-top: 1px; }
+  .card-login {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 30px 26px;
+    box-shadow: var(--shadow-md);
+  }
+  .login-title { font-size: 21px; font-weight: 600; letter-spacing: -.015em; margin-bottom: 5px; }
+  .login-hint { font-size: 13.5px; color: var(--ink-dim); margin-bottom: 22px; }
+  .field { margin-bottom: 15px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 11px 13px; font-size: 14.5px; font-family: inherit;
+    color: var(--ink); background: var(--bg);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: #fff; }
+  .btn {
+    width: 100%; padding: 12px 16px; font-size: 14.5px; font-weight: 600; font-family: inherit;
+    color: #fff; background: var(--accent); border: none; border-radius: var(--radius-sm);
+    cursor: pointer; transition: transform .12s, box-shadow .15s, background .15s; box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover { background: #34406b; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .6; cursor: default; transform: none; }
+  .btn .mini-spin { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 15px; display: none; }
+  .msg.show { display: block; animation: rise .25s ease both; }
+  .msg.error { background: #fdecec; color: #a01919; border: 1px solid #f6cdcd; }
+  .msg.info { background: var(--accent-soft); color: #2e3a63; border: 1px solid #d6dcf0; }
+  .login-foot { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 20px; }
+
+  /* ====== TOPBAR ====== */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(250,249,247,.82); backdrop-filter: saturate(140%) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-inner {
+    max-width: var(--maxw); margin: 0 auto; padding: 13px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .topbar .brand-mark { margin: 0; justify-content: flex-start; gap: 10px; }
+  .topbar .brand-dot { width: 30px; height: 30px; border-radius: 8px; }
+  .topbar .brand-dot svg { width: 17px; height: 17px; }
+  .topbar .brand-name { font-size: 16px; }
+  .spacer { flex: 1; }
+  .icon-btn {
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink-soft);
+    border-radius: 9px; padding: 7px 11px; font-size: 12.5px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: background .15s, border-color .15s, color .15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .icon-btn:hover { background: var(--surface-2); border-color: var(--ink-dim); }
+  .lang-toggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 9px; overflow: hidden; background: var(--surface); }
+  .lang-toggle button {
+    border: none; background: transparent; color: var(--ink-dim); font-family: inherit;
+    font-size: 12px; font-weight: 700; padding: 7px 10px; cursor: pointer; transition: background .15s, color .15s;
+  }
+  .lang-toggle button.on { background: var(--accent); color: #fff; }
+
+  /* ====== KONTEN ====== */
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 26px 20px 60px; }
+  .page-head { margin-bottom: 22px; animation: rise .5s ease both; }
+  .page-title { font-size: 25px; font-weight: 600; letter-spacing: -.02em; }
+  .page-sub { font-size: 14px; color: var(--ink-dim); margin-top: 3px; }
+
+  .banner {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--accent-soft); border: 1px solid #dbe0f1; color: #2e3a63;
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 24px; font-size: 13.5px;
+    animation: rise .55s ease both;
+  }
+  .banner svg { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+
+  .section-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); margin: 0 2px 12px; }
+
+  .grid { display: grid; grid-template-columns: 1fr; gap: 13px; }
+  @media (min-width: 560px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+  .svc {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 17px; box-shadow: var(--shadow-sm);
+    transition: transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .18s, border-color .18s;
+    animation: rise .5s ease both;
+  }
+  .svc:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .svc-top { display: flex; align-items: center; gap: 11px; margin-bottom: 13px; }
+  .svc-ico {
+    width: 38px; height: 38px; border-radius: 10px; flex: none;
+    background: var(--surface-2); border: 1px solid var(--border);
+    display: grid; place-items: center; font-weight: 700; font-size: 15px; color: var(--accent);
+  }
+  .svc-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .svc-fn { font-size: 12px; color: var(--ink-dim); margin-top: 1px; }
+  .svc-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
+  .dot.idle { background: var(--idle); box-shadow: 0 0 0 3px rgba(182,178,168,.18); }
+  .badge-soon { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 7px; border-radius: 6px; }
+
+  .foot-note { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 34px; line-height: 1.7; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ============ LAYAR 0: BOOT ============ -->
+<section id="screen-boot" class="screen active">
+  <div class="boot-card">
+    <div class="spinner"></div>
+    <div style="font-size:13.5px;color:var(--ink-dim)" data-i18n="boot">Menyiapkan…</div>
+  </div>
+</section>
+
+<!-- ============ LAYAR 1: LOGIN ============ -->
+<section id="screen-login" class="screen">
+  <div class="login-wrap">
+    <div class="brand-mark">
+      <span class="brand-dot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"/><path d="M12 7v5l3 2"/></svg>
+      </span>
+      <span class="brand-name serif">Kendali<span class="sub">Tech Stack Monitor · rempangops.com</span></span>
+    </div>
+    <div class="card-login">
+      <div class="login-title serif" data-i18n="login_title">Masuk</div>
+      <div class="login-hint" data-i18n="login_hint">Pemantauan layanan untuk tim PT MEG.</div>
+
+      <div id="login-msg" class="msg"></div>
+
+      <div class="field">
+        <label for="email" data-i18n="email_label">Email</label>
+        <input id="email" type="email" autocomplete="username" placeholder="nama@email.com" />
+      </div>
+      <div class="field">
+        <label for="password" data-i18n="pass_label">Kata sandi</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <button id="btn-login" class="btn"><span data-i18n="login_btn">Masuk</span></button>
+
+      <div class="login-foot" data-i18n="login_foot">Akses terbatas. Hubungi admin bila butuh akun.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYAR 2: DASHBOARD ============ -->
+<section id="screen-app" class="screen">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-mark">
+        <span class="brand-dot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"/><path d="M12 7v5l3 2"/></svg>
+        </span>
+        <span class="brand-name serif">Kendali</span>
+      </div>
+      <span class="spacer"></span>
+      <div class="lang-toggle" id="lang-toggle">
+        <button data-lang="id" class="on">ID</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="icon-btn" id="btn-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span data-i18n="logout">Keluar</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="page-head">
+      <div class="page-title serif" data-i18n="page_title">Ringkasan</div>
+      <div class="page-sub" id="page-sub" data-i18n="page_sub">Selamat datang. Semua layanan dalam satu layar.</div>
+    </div>
+
+    <div class="banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/></svg>
+      <div data-i18n="banner">Ini kerangka awal (Fase 0). Pemantauan status, biaya, dan peringatan akan diaktifkan bertahap di fase berikutnya.</div>
+    </div>
+
+    <div class="section-label" data-i18n="services_label">Layanan dipantau</div>
+    <div class="grid" id="svc-grid"><!-- diisi oleh JS --></div>
+
+    <div class="foot-note">
+      <span data-i18n="foot">Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.</span><br/>
+      <span id="session-line" style="opacity:.8"></span>
+    </div>
+  </main>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Daftar layanan (placeholder Fase 0) ----------
+  var SERVICES = [
+    { key: "vercel",     ab: "V",  name: "Vercel",            fn_id: "Hosting aplikasi",      fn_en: "App hosting" },
+    { key: "supabase",   ab: "S",  name: "Supabase",          fn_id: "Database",              fn_en: "Database" },
+    { key: "anthropic",  ab: "C",  name: "Anthropic · Claude",fn_id: "AI analisis",           fn_en: "AI analysis" },
+    { key: "assemblyai", ab: "A",  name: "AssemblyAI",        fn_id: "Pengenalan suara",      fn_en: "Speech-to-text" },
+    { key: "groq",       ab: "G",  name: "Groq",              fn_id: "AI umum (cadangan)",    fn_en: "General AI (backup)" },
+    { key: "gemini",     ab: "Ge", name: "Google Gemini",     fn_id: "Pembaca dokumen",       fn_en: "Document OCR" },
+    { key: "fonnte",     ab: "F",  name: "Fonnte",            fn_id: "Gateway WhatsApp",      fn_en: "WhatsApp gateway" },
+    { key: "maptiler",   ab: "M",  name: "MapTiler",          fn_id: "Peta dasar",            fn_en: "Base map" }
+  ];
+
+  // ---------- Terjemahan ----------
+  var I18N = {
+    id: {
+      boot: "Menyiapkan…",
+      login_title: "Masuk", login_hint: "Pemantauan layanan untuk tim PT MEG.",
+      email_label: "Email", pass_label: "Kata sandi", login_btn: "Masuk",
+      login_foot: "Akses terbatas. Hubungi admin bila butuh akun.",
+      logout: "Keluar", page_title: "Ringkasan",
+      page_sub: "Selamat datang. Semua layanan dalam satu layar.",
+      banner: "Ini kerangka awal (Fase 0). Pemantauan status, biaya, dan peringatan akan diaktifkan bertahap di fase berikutnya.",
+      services_label: "Layanan dipantau",
+      foot: "Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.",
+      soon: "Menyusul", st_idle: "Belum dipantau",
+      err_config: "Gagal memuat konfigurasi. Periksa pengaturan Vercel (SUPABASE_URL & SUPABASE_ANON_KEY).",
+      err_login: "Email atau kata sandi salah.", err_empty: "Isi email dan kata sandi dulu.",
+      signing: "Memproses…", session_as: "Masuk sebagai"
+    },
+    en: {
+      boot: "Preparing…",
+      login_title: "Sign in", login_hint: "Service monitoring for the PT MEG team.",
+      email_label: "Email", pass_label: "Password", login_btn: "Sign in",
+      login_foot: "Restricted access. Contact admin for an account.",
+      logout: "Sign out", page_title: "Overview",
+      page_sub: "Welcome. Every service on one screen.",
+      banner: "This is the initial shell (Phase 0). Status, cost, and alert monitoring will be turned on gradually in later phases.",
+      services_label: "Monitored services",
+      foot: "Dashboard Kendali · PT MEG internal tool · monitors only, never changes the app.",
+      soon: "Soon", st_idle: "Not monitored yet",
+      err_config: "Failed to load configuration. Check Vercel settings (SUPABASE_URL & SUPABASE_ANON_KEY).",
+      err_login: "Wrong email or password.", err_empty: "Enter email and password first.",
+      signing: "Working…", session_as: "Signed in as"
+    }
+  };
+
+  var lang = localStorage.getItem("kendali_lang") || "id";
+  var supabase = null;
+  var currentEmail = "";
+
+  // ---------- Util ----------
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $all(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function t(k) { return (I18N[lang] && I18N[lang][k]) || (I18N.id[k]) || k; }
+
+  function show(id) {
+    $all(".screen").forEach(function (el) { el.classList.remove("active"); });
+    $("#" + id).classList.add("active");
+  }
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    $all("[data-i18n]").forEach(function (el) { el.textContent = t(el.getAttribute("data-i18n")); });
+    $all("#lang-toggle button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
+    renderServices();
+    if (currentEmail) $("#session-line").textContent = t("session_as") + ": " + currentEmail;
+  }
+
+  function renderServices() {
+    var grid = $("#svc-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    SERVICES.forEach(function (s, i) {
+      var fn = lang === "en" ? s.fn_en : s.fn_id;
+      var el = document.createElement("div");
+      el.className = "svc";
+      el.style.animationDelay = (i * 45) + "ms";
+      el.innerHTML =
+        '<div class="svc-top">' +
+          '<div class="svc-ico">' + s.ab + '</div>' +
+          '<div><div class="svc-name">' + s.name + '</div><div class="svc-fn">' + fn + '</div></div>' +
+        '</div>' +
+        '<div class="svc-foot">' +
+          '<span class="status"><span class="dot idle"></span>' + t("st_idle") + '</span>' +
+          '<span class="badge-soon">' + t("soon") + '</span>' +
+        '</div>';
+      grid.appendChild(el);
+    });
+  }
+
+  function setMsg(kind, text) {
+    var m = $("#login-msg");
+    m.className = "msg show " + kind;
+    m.textContent = text;
+  }
+  function clearMsg() { var m = $("#login-msg"); m.className = "msg"; m.textContent = ""; }
+
+  // ---------- Auth flow ----------
+  function goApp(email) {
+    currentEmail = email || "";
+    show("screen-app");
+    applyLang();
+  }
+
+  function bindLogin() {
+    var btn = $("#btn-login");
+    function submit() {
+      clearMsg();
+      var email = $("#email").value.trim();
+      var pass = $("#password").value;
+      if (!email || !pass) { setMsg("error", t("err_empty")); return; }
+      btn.disabled = true;
+      var label = btn.querySelector("[data-i18n]");
+      var old = label.textContent; label.textContent = t("signing");
+      var spin = document.createElement("span"); spin.className = "mini-spin"; btn.appendChild(spin);
+
+      supabase.auth.signInWithPassword({ email: email, password: pass })
+        .then(function (res) {
+          if (res.error) { setMsg("error", t("err_login")); }
+          else { goApp(res.data.user && res.data.user.email); }
+        })
+        .catch(function () { setMsg("error", t("err_login")); })
+        .finally(function () {
+          btn.disabled = false; label.textContent = old;
+          if (spin.parentNode) spin.parentNode.removeChild(spin);
+        });
+    }
+    btn.addEventListener("click", submit);
+    $("#password").addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
+    $("#email").addEventListener("keydown", function (e) { if (e.key === "Enter") $("#password").focus(); });
+  }
+
+  function bindChrome() {
+    $("#lang-toggle").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      lang = b.getAttribute("data-lang");
+      localStorage.setItem("kendali_lang", lang);
+      applyLang();
+    });
+    $("#btn-logout").addEventListener("click", function () {
+      supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
+    });
+  }
+
+  // ---------- Boot ----------
+  function boot() {
+    // terjemahkan layar boot/login lebih dulu
+    $all("[data-i18n]").forEach(function (el) { el.textContent = t(el.getAttribute("data-i18n")); });
+    $all("#lang-toggle button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
+
+    fetch("/api/config")
+      .then(function (r) { return r.json(); })
+      .then(function (cfg) {
+        if (!cfg || !cfg.url || !cfg.anonKey) throw new Error("config kosong");
+        supabase = window.supabase.createClient(cfg.url, cfg.anonKey);
+        bindLogin(); bindChrome();
+        return supabase.auth.getSession();
+      })
+      .then(function (res) {
+        var session = res && res.data ? res.data.session : null;
+        if (session && session.user) { goApp(session.user.email); }
+        else { show("screen-login"); }
+      })
+      .catch(function (err) {
+        // gagal config: tetap tampilkan login + pesan jelas
+        show("screen-login");
+        setMsg("error", t("err_config"));
+        try { bindChrome(); } catch (e) {}
+        console.warn("Boot error:", err);
+      });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
