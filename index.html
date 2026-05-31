@@ -217,6 +217,7 @@
       <button id="btn-login" class="btn"><span data-i18n="login_btn">Masuk</span></button>
 
       <div class="login-foot" data-i18n="login_foot">Akses terbatas. Hubungi admin bila butuh akun.</div>
+      <div id="diag-line" style="margin-top:14px;font-size:11px;line-height:1.6;color:var(--ink-dim);font-family:monospace;word-break:break-all;display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;"></div>
     </div>
   </div>
 </section>
@@ -387,10 +388,18 @@
 
       supabase.auth.signInWithPassword({ email: email, password: pass })
         .then(function (res) {
-          if (res.error) { setMsg("error", t("err_login")); }
+          if (res.error) {
+            var detail = (res.error && res.error.message) ? res.error.message : "unknown";
+            var code = (res.error && (res.error.status || res.error.code)) ? (res.error.status || res.error.code) : "?";
+            setMsg("error", "DIAGNOSA → [" + code + "] " + detail);
+            console.error("Login error:", res.error);
+          }
           else { goApp(res.data.user && res.data.user.email); }
         })
-        .catch(function () { setMsg("error", t("err_login")); })
+        .catch(function (e) {
+          setMsg("error", "DIAGNOSA (exception) → " + ((e && e.message) ? e.message : String(e)));
+          console.error("Login exception:", e);
+        })
         .finally(function () {
           btn.disabled = false; label.textContent = old;
           if (spin.parentNode) spin.parentNode.removeChild(spin);
@@ -425,6 +434,19 @@
         if (!cfg || !cfg.url || !cfg.anonKey) throw new Error("config kosong");
         supabase = window.supabase.createClient(cfg.url, cfg.anonKey);
         bindLogin(); bindChrome();
+        // ---- DIAGNOSTIK (sementara) ----
+        try {
+          var host = "?"; try { host = new URL(cfg.url).host; } catch (e) {}
+          var k = cfg.anonKey || "";
+          var ktype = k.indexOf("sb_publishable_") === 0 ? "publishable ✓"
+                    : k.indexOf("sb_secret_") === 0 ? "SECRET ⚠ (SALAH!)"
+                    : k.indexOf("eyJ") === 0 ? "legacy-jwt"
+                    : "TIDAK DIKENAL ⚠";
+          var d = document.getElementById("diag-line");
+          d.style.display = "block";
+          d.textContent = "diag · url=" + host + " · key=" + ktype + " · len=" + k.length;
+          window.__diag = d;
+        } catch (e) {}
         return supabase.auth.getSession();
       })
       .then(function (res) {
