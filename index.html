@@ -174,6 +174,18 @@
   .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
   .dot.idle { background: var(--idle); box-shadow: 0 0 0 3px rgba(182,178,168,.18); }
+  .dot.up { background: var(--ok); box-shadow: 0 0 0 3px rgba(22,163,74,.16); }
+  .dot.degraded { background: var(--warn); box-shadow: 0 0 0 3px rgba(217,119,6,.16); }
+  .dot.down { background: var(--bad); box-shadow: 0 0 0 3px rgba(220,38,38,.16); }
+  .status.up { color: #15803d; } .status.degraded { color: #b45309; } .status.down { color: #b91c1c; }
+  .svc-meta { font-size: 11.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; text-align: right; }
+  .svc-dot-lg { width: 10px; height: 10px; border-radius: 50%; margin-left: auto; flex: none; }
+  /* ringkasan + tombol muat ulang */
+  .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
+  .summary .pill { display: inline-flex; align-items: center; gap: 6px; }
+  .summary .upd { color: var(--ink-dim); font-size: 12px; }
+  #btn-reload svg { transition: transform .2s; }
+  #btn-reload.spinning svg { animation: spin .8s linear infinite; }
   .badge-soon { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 7px; border-radius: 6px; }
 
   .foot-note { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 34px; line-height: 1.7; }
@@ -232,6 +244,10 @@
         <span class="brand-name serif">Kendali</span>
       </div>
       <span class="spacer"></span>
+      <button class="icon-btn" id="btn-reload" title="Muat ulang">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        <span data-i18n="reload">Muat ulang</span>
+      </button>
       <div class="lang-toggle" id="lang-toggle">
         <button data-lang="id" class="on">ID</button>
         <button data-lang="en">EN</button>
@@ -247,11 +263,12 @@
     <div class="page-head">
       <div class="page-title serif" data-i18n="page_title">Ringkasan</div>
       <div class="page-sub" id="page-sub" data-i18n="page_sub">Selamat datang. Semua layanan dalam satu layar.</div>
+      <div class="summary" id="status-summary"></div>
     </div>
 
     <div class="banner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/></svg>
-      <div data-i18n="banner">Ini kerangka awal (Fase 0). Pemantauan status, biaya, dan peringatan akan diaktifkan bertahap di fase berikutnya.</div>
+      <div data-i18n="banner">Pemantauan status & kesehatan aktif (diperiksa otomatis berkala). Pemantauan biaya & notifikasi menyusul di fase berikutnya.</div>
     </div>
 
     <div class="section-label" data-i18n="services_label">Layanan dipantau</div>
@@ -290,10 +307,14 @@
       login_foot: "Akses terbatas. Hubungi admin bila butuh akun.",
       logout: "Keluar", page_title: "Ringkasan",
       page_sub: "Selamat datang. Semua layanan dalam satu layar.",
-      banner: "Ini kerangka awal (Fase 0). Pemantauan status, biaya, dan peringatan akan diaktifkan bertahap di fase berikutnya.",
+      banner: "Pemantauan status & kesehatan aktif (diperiksa otomatis berkala). Pemantauan biaya & notifikasi menyusul di fase berikutnya.",
       services_label: "Layanan dipantau",
       foot: "Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.",
       soon: "Menyusul", st_idle: "Belum dipantau",
+      st_up: "Sehat", st_degraded: "Lambat", st_down: "Bermasalah", st_nodata: "Belum ada data",
+      reload: "Muat ulang", updated: "Diperbarui", just_now: "baru saja",
+      min_ago: "mnt lalu", hr_ago: "jam lalu", day_ago: "hari lalu",
+      sum_up: "sehat", sum_degraded: "lambat", sum_down: "bermasalah", sum_none: "Belum ada data status — coba Muat ulang.",
       err_config: "Gagal memuat konfigurasi. Periksa pengaturan Vercel (SUPABASE_URL & SUPABASE_ANON_KEY).",
       err_login: "Email atau kata sandi salah.", err_empty: "Isi email dan kata sandi dulu.",
       err_tech: "Tidak bisa terhubung ke layanan saat ini. Coba lagi sebentar, atau hubungi admin.",
@@ -306,10 +327,14 @@
       login_foot: "Restricted access. Contact admin for an account.",
       logout: "Sign out", page_title: "Overview",
       page_sub: "Welcome. Every service on one screen.",
-      banner: "This is the initial shell (Phase 0). Status, cost, and alert monitoring will be turned on gradually in later phases.",
+      banner: "Status & health monitoring is live (checked automatically on a schedule). Cost & alert monitoring will come in later phases.",
       services_label: "Monitored services",
       foot: "Dashboard Kendali · PT MEG internal tool · monitors only, never changes the app.",
       soon: "Soon", st_idle: "Not monitored yet",
+      st_up: "Healthy", st_degraded: "Slow", st_down: "Down", st_nodata: "No data yet",
+      reload: "Refresh", updated: "Updated", just_now: "just now",
+      min_ago: "min ago", hr_ago: "h ago", day_ago: "d ago",
+      sum_up: "healthy", sum_degraded: "slow", sum_down: "down", sum_none: "No status data yet — try Refresh.",
       err_config: "Failed to load configuration. Check Vercel settings (SUPABASE_URL & SUPABASE_ANON_KEY).",
       err_login: "Wrong email or password.", err_empty: "Enter email and password first.",
       err_tech: "Couldn't reach the service right now. Try again shortly, or contact admin.",
@@ -320,6 +345,8 @@
   var lang = localStorage.getItem("kendali_lang") || "id";
   var supabase = null;
   var currentEmail = "";
+  var STATUS_MAP = {};
+  var statusTimer = null;
 
   // ---------- Util ----------
   function $(s, r) { return (r || document).querySelector(s); }
@@ -336,7 +363,26 @@
     $all("[data-i18n]").forEach(function (el) { el.textContent = t(el.getAttribute("data-i18n")); });
     $all("#lang-toggle button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
     renderServices();
+    updateSummary();
     if (currentEmail) $("#session-line").textContent = t("session_as") + ": " + currentEmail;
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return "";
+    var diff = Date.now() - new Date(iso).getTime();
+    if (isNaN(diff)) return "";
+    var s = Math.floor(diff / 1000);
+    if (s < 45) return t("just_now");
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + " " + t("min_ago");
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + " " + t("hr_ago");
+    return Math.floor(h / 24) + " " + t("day_ago");
+  }
+
+  function statusLabel(st) {
+    return st === "up" ? t("st_up") : st === "degraded" ? t("st_degraded")
+         : st === "down" ? t("st_down") : t("st_nodata");
   }
 
   function renderServices() {
@@ -345,19 +391,71 @@
     grid.innerHTML = "";
     SERVICES.forEach(function (s, i) {
       var fn = lang === "en" ? s.fn_en : s.fn_id;
+      var row = STATUS_MAP[s.key];
+      var st = row ? row.status : "idle";
+      var dotClass = (st === "up" || st === "degraded" || st === "down") ? st : "idle";
+      var meta = "";
+      if (row) {
+        var parts = [];
+        if (row.latency_ms != null) parts.push(row.latency_ms + " ms");
+        if (row.checked_at) parts.push(relativeTime(row.checked_at));
+        meta = parts.join(" · ");
+      }
       var el = document.createElement("div");
       el.className = "svc";
-      el.style.animationDelay = (i * 45) + "ms";
+      el.style.animationDelay = (i * 40) + "ms";
       el.innerHTML =
         '<div class="svc-top">' +
           '<div class="svc-ico">' + s.ab + '</div>' +
-          '<div><div class="svc-name">' + s.name + '</div><div class="svc-fn">' + fn + '</div></div>' +
+          '<div style="flex:1"><div class="svc-name">' + s.name + '</div><div class="svc-fn">' + fn + '</div></div>' +
+          '<span class="svc-dot-lg dot ' + dotClass + '"></span>' +
         '</div>' +
         '<div class="svc-foot">' +
-          '<span class="status"><span class="dot idle"></span>' + t("st_idle") + '</span>' +
-          '<span class="badge-soon">' + t("soon") + '</span>' +
+          '<span class="status ' + (row ? st : "") + '"><span class="dot ' + dotClass + '"></span>' + statusLabel(st) + '</span>' +
+          '<span class="svc-meta">' + meta + '</span>' +
         '</div>';
       grid.appendChild(el);
+    });
+  }
+
+  function updateSummary() {
+    var box = $("#status-summary");
+    if (!box) return;
+    var up = 0, deg = 0, down = 0, latest = null;
+    SERVICES.forEach(function (s) {
+      var r = STATUS_MAP[s.key]; if (!r) return;
+      if (r.status === "up") up++; else if (r.status === "degraded") deg++; else if (r.status === "down") down++;
+      if (r.checked_at && (!latest || new Date(r.checked_at) > new Date(latest))) latest = r.checked_at;
+    });
+    if (!latest) { box.innerHTML = '<span class="upd">' + t("sum_none") + '</span>'; return; }
+    var html =
+      '<span class="pill"><span class="dot up"></span>' + up + ' ' + t("sum_up") + '</span>' +
+      (deg ? '<span class="pill"><span class="dot degraded"></span>' + deg + ' ' + t("sum_degraded") + '</span>' : '') +
+      (down ? '<span class="pill"><span class="dot down"></span>' + down + ' ' + t("sum_down") + '</span>' : '') +
+      '<span class="upd">· ' + t("updated") + ' ' + relativeTime(latest) + '</span>';
+    box.innerHTML = html;
+  }
+
+  async function fetchStatuses() {
+    STATUS_MAP = {};
+    try {
+      var q = await supabase.from("status_history")
+        .select("service_key,status,latency_ms,http_code,detail,checked_at")
+        .order("checked_at", { ascending: false })
+        .limit(200);
+      if (q.error) { console.error("fetchStatuses:", q.error); return; }
+      (q.data || []).forEach(function (row) {
+        if (!STATUS_MAP[row.service_key]) STATUS_MAP[row.service_key] = row; // pertama = terbaru
+      });
+    } catch (e) { console.error("fetchStatuses ex:", e); }
+  }
+
+  function refreshStatuses() {
+    var btn = $("#btn-reload");
+    if (btn) btn.classList.add("spinning");
+    return fetchStatuses().then(function () {
+      renderServices(); updateSummary();
+      if (btn) setTimeout(function () { btn.classList.remove("spinning"); }, 300);
     });
   }
 
@@ -373,6 +471,11 @@
     currentEmail = email || "";
     show("screen-app");
     applyLang();
+    refreshStatuses();
+    if (statusTimer) clearInterval(statusTimer);
+    statusTimer = setInterval(function () {
+      if ($("#screen-app").classList.contains("active")) refreshStatuses();
+    }, 60000);
   }
 
   function bindLogin() {
@@ -421,7 +524,9 @@
       localStorage.setItem("kendali_lang", lang);
       applyLang();
     });
+    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); });
     $("#btn-logout").addEventListener("click", function () {
+      if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
       supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
     });
   }
