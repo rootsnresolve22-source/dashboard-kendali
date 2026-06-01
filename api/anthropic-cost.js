@@ -49,12 +49,13 @@ module.exports = async function (req, res) {
   if (!ADMIN) { res.status(500).json({ ok: false, error: "missing ANTHROPIC_ADMIN_KEY" }); return; }
   if (!SUPA_URL || !SECRET) { res.status(500).json({ ok: false, error: "missing SUPABASE_URL or SUPABASE_SECRET_KEY" }); return; }
 
-  // --- Periode bulan berjalan (UTC) ---
+  // --- Periode bulan berjalan (UTC), berakhir SEKARANG ---
+  // PENTING: ending_at TIDAK boleh tanggal masa depan — Anthropic menolaknya
+  // (mis. di tgl 1 bulan, "besok" = masa depan → error 400). Pakai waktu sekarang.
   var now = new Date();
   var monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  var ending = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)); // besok 00:00 UTC (inklusif hari ini)
   var startIso = monthStart.toISOString();
-  var endIso = ending.toISOString();
+  var endIso = now.toISOString();
 
   // --- Tarik cost_report Anthropic ---
   var totalUsd = null, buckets = 0, sample = null;
