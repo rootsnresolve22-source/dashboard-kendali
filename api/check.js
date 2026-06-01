@@ -22,8 +22,9 @@ var SERVICES = [
   { key: "maptiler",   type: "ping",       url: "https://api.maptiler.com/" }
 ];
 
-var TIMEOUT_MS = 8000; // batas tunggu
-var SLOW_MS = 3000;    // di atas ini dianggap 'degraded'
+var PING_TIMEOUT_MS = 3000; // batas tunggu per layanan (harus di bawah batas jam-otomatis 5 detik)
+var DB_TIMEOUT_MS = 1000;   // batas tunggu menyimpan ke database
+var SLOW_MS = 2000;         // di atas ini (tapi masih menjawab) dianggap 'lambat' (degraded)
 
 function fetchTimeout(url, opts, ms) {
   var ctl = new AbortController();
@@ -35,7 +36,7 @@ function fetchTimeout(url, opts, ms) {
 async function checkPing(svc) {
   var start = Date.now();
   try {
-    var res = await fetchTimeout(svc.url, { method: "GET" }, TIMEOUT_MS);
+    var res = await fetchTimeout(svc.url, { method: "GET" }, PING_TIMEOUT_MS);
     var latency = Date.now() - start;
     var code = res.status;
     var status;
@@ -53,7 +54,7 @@ async function checkPing(svc) {
 async function checkStatuspage(svc) {
   var start = Date.now();
   try {
-    var res = await fetchTimeout(svc.url, {}, TIMEOUT_MS);
+    var res = await fetchTimeout(svc.url, {}, PING_TIMEOUT_MS);
     var latency = Date.now() - start;
     if (!res.ok) {
       return { status: (res.status >= 500 ? "down" : "up"), latency_ms: latency, http_code: res.status, detail: "statuspage http " + res.status };
@@ -123,7 +124,7 @@ module.exports = async function (req, res) {
         "Prefer": "return=minimal"
       },
       body: JSON.stringify(results)
-    }, TIMEOUT_MS);
+    }, DB_TIMEOUT_MS);
     saved = ins.ok;
     if (!ins.ok) { saveErr = "insert http " + ins.status + ": " + (await ins.text()); }
   } catch (e) {
