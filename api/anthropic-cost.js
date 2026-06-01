@@ -2,8 +2,9 @@
 // Menarik biaya (cost) pemakaian Anthropic via Admin API, lalu menyimpan ringkasannya
 // ke tabel anthropic_cost di Supabase. Dipanggil penjadwal (cron) atau manual (?token=).
 //
-// Catatan penting:
-// - Cost API Anthropic melaporkan angka dalam SEN (cents) -> dibagi 100 = USD.
+// Catatan penting (TERVERIFIKASI dari data asli, BUKAN dari dokumen):
+// - Field "amount" pada cost_report bernilai DOLLAR (USD), mis. "12.539" = $12,539.
+//   (Dokumen Anthropic menyebut "cents", tetapi data nyata = dollar. Jangan dibagi 100.)
 // - Cost API membandingkan per-TANGGAL & menolak tanggal akhir = tanggal mulai / masa depan.
 //   Maka kita memakai HARI-HARI YANG SUDAH SELESAI: 30 hari lalu -> awal hari ini (UTC).
 
@@ -17,24 +18,26 @@ function fetchTimeout(url, opts, ms) {
   return fetch(url, o).finally(function () { clearTimeout(t); });
 }
 
-// Ringkas respons cost_report: total 30 hari, bulan-berjalan (MTD), jumlah bucket
+function round2(x) { return Math.round(x * 100) / 100; }
+
+// Ringkas respons cost_report (amount dalam USD): total 30 hari, bulan-berjalan (MTD), bucket
 function summarize(data, monthStartMs) {
-  var totalCents = 0, mtdCents = 0, buckets = 0;
+  var totalUsd = 0, mtdUsd = 0, buckets = 0;
   (data || []).forEach(function (b) {
     buckets++;
     var bMs = (b && b.starting_at) ? Date.parse(b.starting_at) : NaN;
-    var bCents = 0;
+    var bUsd = 0;
     var results = (b && b.results) ? b.results : [];
     results.forEach(function (it) {
       var amt = (it && it.amount != null) ? it.amount
               : (it && it.cost != null) ? it.cost
               : null;
-      if (amt != null) { var n = Number(amt); if (!isNaN(n)) bCents += n; }
+      if (amt != null) { var n = Number(amt); if (!isNaN(n)) bUsd += n; }
     });
-    totalCents += bCents;
-    if (!isNaN(bMs) && bMs >= monthStartMs) mtdCents += bCents;
+    totalUsd += bUsd;
+    if (!isNaN(bMs) && bMs >= monthStartMs) mtdUsd += bUsd;
   });
-  return { totalCents: totalCents, mtdCents: mtdCents, buckets: buckets };
+  return { totalUsd: totalUsd, mtdUsd: mtdUsd, buckets: buckets };
 }
 
 module.exports = async function (req, res) {
@@ -83,10 +86,10 @@ module.exports = async function (req, res) {
     sample = (withData.length ? withData : (body.data || [])).slice(0, 2);
     var s = summarize(body.data, monthStart.getTime());
     buckets = s.buckets;
-    total30 = Math.round(s.totalCents) / 100;
-    mtd = Math.round(s.mtdCents) / 100;
-    dailyAvg = Math.round(s.totalCents / 30) / 100;
-    monthlyProj = Math.round(dailyAvg * 30 * 100) / 100;
+    total30 = round2(s.totalUsd);
+    mtd = round2(s.mtdUsd);
+    dailyAvg = round2(s.totalUsd / 30);
+    monthlyProj = round2((s.totalUsd / 30) * 30);
   } catch (e) {
     var msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message ? e.message : String(e));
     res.status(200).json({ ok: false, stage: "anthropic", error: msg });
