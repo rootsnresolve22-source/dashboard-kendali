@@ -189,6 +189,14 @@
   .role-badge { font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; line-height: 1.6; }
   .role-badge.is-admin { color: var(--accent); background: rgba(61,74,122,.10); border-color: rgba(61,74,122,.28); }
   .role-badge.is-exec { color: var(--ink-dim); background: var(--surface-2); }
+  .due-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; line-height: 1.5; }
+  .due-badge.ok { color: #15803d; background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.25); }
+  .due-badge.warn { color: #b45309; background: rgba(217,119,6,.10); border-color: rgba(217,119,6,.28); }
+  .due-badge.bad { color: #b91c1c; background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.28); }
+  .due-badge.info { color: var(--accent); background: rgba(61,74,122,.08); border-color: rgba(61,74,122,.22); }
+  .cost-amount { font-size: 13px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .cost-summary { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 2px 14px; font-size: 13px; color: var(--ink-soft); }
+  .cost-summary .pill { display: inline-flex; align-items: center; gap: 6px; }
   @media (max-width: 460px) {
     #btn-reload span[data-i18n] { display: none; }
     #btn-reload { padding: 7px 9px; }
@@ -284,6 +292,10 @@
     <div class="section-label" data-i18n="services_label">Layanan dipantau</div>
     <div class="grid" id="svc-grid"><!-- diisi oleh JS --></div>
 
+    <div class="section-label" style="margin-top:28px" data-i18n="costs_label">Biaya &amp; Tanggal Penting</div>
+    <div class="cost-summary" id="cost-summary"></div>
+    <div class="grid" id="cost-grid"><!-- diisi oleh JS --></div>
+
     <div class="foot-note">
       <span data-i18n="foot">Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.</span><br/>
       <span id="session-line" style="opacity:.8"></span>
@@ -317,7 +329,7 @@
       login_foot: "Akses terbatas. Hubungi admin bila butuh akun.",
       logout: "Keluar", page_title: "Ringkasan",
       page_sub: "Selamat datang. Semua layanan dalam satu layar.",
-      banner: "Pemantauan status & kesehatan aktif (diperiksa otomatis berkala). Pemantauan biaya & notifikasi menyusul di fase berikutnya.",
+      banner: "Pemantauan status, biaya & tanggal penting aktif (diperiksa otomatis berkala). Notifikasi & ramalan menyusul di fase berikutnya.",
       services_label: "Layanan dipantau",
       foot: "Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.",
       soon: "Menyusul", st_idle: "Belum dipantau",
@@ -329,7 +341,12 @@
       err_login: "Email atau kata sandi salah.", err_empty: "Isi email dan kata sandi dulu.",
       err_tech: "Tidak bisa terhubung ke layanan saat ini. Coba lagi sebentar, atau hubungi admin.",
       signing: "Memproses…", session_as: "Masuk sebagai",
-      role_admin: "Admin", role_eksekutif: "Eksekutif"
+      role_admin: "Admin", role_eksekutif: "Eksekutif",
+      costs_label: "Biaya & Tanggal Penting",
+      c_billing: "Tagihan rutin", c_expire: "Kedaluwarsa", c_free: "Gratis",
+      c_in_days: "hari lagi", c_today: "jatuh hari ini", c_overdue: "terlewat", c_days: "hari",
+      c_per_month: "/bln", c_nearest: "Terdekat", c_fixed_monthly: "Biaya tetap bulanan",
+      c_none: "Belum ada data biaya."
     },
     en: {
       boot: "Preparing…",
@@ -338,7 +355,7 @@
       login_foot: "Restricted access. Contact admin for an account.",
       logout: "Sign out", page_title: "Overview",
       page_sub: "Welcome. Every service on one screen.",
-      banner: "Status & health monitoring is live (checked automatically on a schedule). Cost & alert monitoring will come in later phases.",
+      banner: "Status, cost & key-date monitoring is live (checked automatically on a schedule). Alerts & forecasting will come in later phases.",
       services_label: "Monitored services",
       foot: "Dashboard Kendali · PT MEG internal tool · monitors only, never changes the app.",
       soon: "Soon", st_idle: "Not monitored yet",
@@ -350,7 +367,12 @@
       err_login: "Wrong email or password.", err_empty: "Enter email and password first.",
       err_tech: "Couldn't reach the service right now. Try again shortly, or contact admin.",
       signing: "Working…", session_as: "Signed in as",
-      role_admin: "Admin", role_eksekutif: "Executive"
+      role_admin: "Admin", role_eksekutif: "Executive",
+      costs_label: "Costs & Key Dates",
+      c_billing: "Recurring bill", c_expire: "Expires", c_free: "Free",
+      c_in_days: "days left", c_today: "due today", c_overdue: "overdue", c_days: "days",
+      c_per_month: "/mo", c_nearest: "Soonest", c_fixed_monthly: "Fixed monthly cost",
+      c_none: "No cost data yet."
     }
   };
 
@@ -359,6 +381,8 @@
   var currentEmail = "";
   var currentRole = "eksekutif";
   var STATUS_MAP = {};
+  var COST_ITEMS = [];
+  var costsFetched = false;
   var statusTimer = null;
 
   // ---------- Util ----------
@@ -377,6 +401,7 @@
     $all("#lang-toggle button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
     renderServices();
     updateSummary();
+    renderCosts();
     renderRole();
   }
 
@@ -475,6 +500,120 @@
     box.innerHTML = html;
   }
 
+  // ---------- Biaya & tanggal penting ----------
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  function nextDate(item, now) {
+    now = now || new Date();
+    if (item.kind === "recurring_monthly") {
+      var day = item.due_day || 1;
+      var c = new Date(now.getFullYear(), now.getMonth(), day);
+      if (startOfDay(c) < startOfDay(now)) c = new Date(now.getFullYear(), now.getMonth() + 1, day);
+      return c;
+    }
+    if (item.kind === "fixed_date" && item.due_date) {
+      var p = String(item.due_date).split("-");
+      return new Date(+p[0], (+p[1]) - 1, +p[2]);
+    }
+    return null;
+  }
+
+  function daysUntil(target, now) {
+    now = now || new Date();
+    return Math.round((startOfDay(target) - startOfDay(now)) / 86400000);
+  }
+
+  function dueClass(item, days) {
+    if (item.kind === "recurring_monthly") return "info";
+    if (days == null) return "info";
+    if (days <= 7) return "bad";
+    if (days <= 30) return "warn";
+    return "ok";
+  }
+
+  function daysBadge(days) {
+    if (days == null) return "";
+    if (days < 0) return t("c_overdue") + " " + Math.abs(days) + " " + t("c_days");
+    if (days === 0) return t("c_today");
+    return days + " " + t("c_in_days");
+  }
+
+  function fmtMoney(amount, currency) {
+    if (amount == null) return t("c_free");
+    if (currency === "USD") return "$" + amount;
+    if (currency === "IDR") return "Rp" + Number(amount).toLocaleString("id-ID");
+    return (currency ? currency + " " : "") + amount;
+  }
+
+  function fmtAmount(item) {
+    if (item.amount == null) return t("c_free");
+    var s = fmtMoney(item.amount, item.currency);
+    if (item.kind === "recurring_monthly") s += t("c_per_month");
+    return s;
+  }
+
+  function fmtDate(d) {
+    if (!d) return "";
+    try { return d.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" }); }
+    catch (e) { return ""; }
+  }
+
+  async function fetchCosts() {
+    try {
+      var q = await supabase.from("cost_items")
+        .select("service_key,label,kind,amount,currency,due_day,due_date,notes,sort_order")
+        .order("sort_order", { ascending: true });
+      if (q.error) { console.error("fetchCosts:", q.error); }
+      else { COST_ITEMS = q.data || []; }
+    } catch (e) { console.error("fetchCosts ex:", e); }
+    costsFetched = true;
+  }
+
+  function renderCosts() {
+    var grid = $("#cost-grid");
+    if (!grid) return;
+    var now = new Date();
+
+    var sumBox = $("#cost-summary");
+    if (sumBox) {
+      var monthlyUSD = 0, nearest = null;
+      COST_ITEMS.forEach(function (it) {
+        if (it.kind === "recurring_monthly" && it.currency === "USD" && it.amount != null) monthlyUSD += Number(it.amount);
+        var d = nextDate(it, now); if (!d) return;
+        var du = daysUntil(d, now);
+        if (!nearest || du < nearest.days) nearest = { label: it.label, days: du };
+      });
+      var parts = [];
+      if (monthlyUSD > 0) parts.push('<span class="pill">' + t("c_fixed_monthly") + ': $' + monthlyUSD + '</span>');
+      if (nearest) parts.push('<span class="pill">' + t("c_nearest") + ': ' + nearest.label + ' · ' + daysBadge(nearest.days) + '</span>');
+      sumBox.innerHTML = parts.join("");
+    }
+
+    grid.innerHTML = "";
+    if (!COST_ITEMS.length) { if (costsFetched) grid.innerHTML = '<div class="svc"><div class="svc-fn">' + t("c_none") + '</div></div>'; return; }
+    COST_ITEMS.forEach(function (it, i) {
+      var d = nextDate(it, now);
+      var days = d ? daysUntil(d, now) : null;
+      var cls = dueClass(it, days);
+      var jenis = it.kind === "recurring_monthly" ? t("c_billing") : t("c_expire");
+      var ini = (it.label || "?").trim().charAt(0).toUpperCase();
+      var el = document.createElement("div");
+      el.className = "svc";
+      el.style.animationDelay = (i * 40) + "ms";
+      el.innerHTML =
+        '<div class="svc-top">' +
+          '<div class="svc-ico">' + ini + '</div>' +
+          '<div style="flex:1"><div class="svc-name">' + it.label + '</div>' +
+          '<div class="svc-fn">' + jenis + (d ? ' · ' + fmtDate(d) : '') + '</div></div>' +
+        '</div>' +
+        '<div class="svc-foot">' +
+          '<span class="due-badge ' + cls + '">' + daysBadge(days) + '</span>' +
+          '<span class="cost-amount">' + fmtAmount(it) + '</span>' +
+        '</div>';
+      grid.appendChild(el);
+    });
+  }
+
   async function fetchStatuses() {
     STATUS_MAP = {};
     try {
@@ -512,6 +651,7 @@
     applyLang();
     fetchRole().then(renderRole);
     refreshStatuses();
+    fetchCosts().then(renderCosts);
     if (statusTimer) clearInterval(statusTimer);
     statusTimer = setInterval(function () {
       if ($("#screen-app").classList.contains("active")) refreshStatuses();
@@ -564,7 +704,7 @@
       localStorage.setItem("kendali_lang", lang);
       applyLang();
     });
-    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); });
+    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); });
     $("#btn-logout").addEventListener("click", function () {
       if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
       supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
