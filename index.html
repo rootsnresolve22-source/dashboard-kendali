@@ -346,6 +346,9 @@
       c_billing: "Tagihan rutin", c_expire: "Kedaluwarsa", c_free: "Gratis",
       c_in_days: "hari lagi", c_today: "jatuh hari ini", c_overdue: "terlewat", c_days: "hari",
       c_per_month: "/bln", c_nearest: "Terdekat", c_fixed_monthly: "Biaya tetap bulanan",
+      est_monthly: "Perkiraan biaya bulanan",
+      an_title: "Anthropic · Claude", an_sub: "Pemakaian API", an_month_label: "Bulan ini",
+      an_forecast: "Ramalan", an_30d: "30 hari",
       c_none: "Belum ada data biaya."
     },
     en: {
@@ -372,6 +375,9 @@
       c_billing: "Recurring bill", c_expire: "Expires", c_free: "Free",
       c_in_days: "days left", c_today: "due today", c_overdue: "overdue", c_days: "days",
       c_per_month: "/mo", c_nearest: "Soonest", c_fixed_monthly: "Fixed monthly cost",
+      est_monthly: "Est. monthly cost",
+      an_title: "Anthropic · Claude", an_sub: "API usage", an_month_label: "This month",
+      an_forecast: "Forecast", an_30d: "30 days",
       c_none: "No cost data yet."
     }
   };
@@ -382,6 +388,7 @@
   var currentRole = "eksekutif";
   var STATUS_MAP = {};
   var COST_ITEMS = [];
+  var ANTHROPIC = null;
   var costsFetched = false;
   var statusTimer = null;
 
@@ -569,6 +576,15 @@
     costsFetched = true;
   }
 
+  async function fetchAnthropic() {
+    try {
+      var q = await supabase.from("anthropic_cost")
+        .select("month_start,total_usd,last30_usd,daily_avg_usd,monthly_proj_usd,fetched_at")
+        .eq("id", 1).single();
+      if (!q.error && q.data) ANTHROPIC = q.data;
+    } catch (e) { console.error("fetchAnthropic:", e); }
+  }
+
   function renderCosts() {
     var grid = $("#cost-grid");
     if (!grid) return;
@@ -583,14 +599,39 @@
         var du = daysUntil(d, now);
         if (!nearest || du < nearest.days) nearest = { label: it.label, days: du };
       });
+      var anthroProj = (ANTHROPIC && ANTHROPIC.monthly_proj_usd != null) ? Number(ANTHROPIC.monthly_proj_usd) : 0;
+      var totalMonthly = Math.round((monthlyUSD + anthroProj) * 100) / 100;
       var parts = [];
-      if (monthlyUSD > 0) parts.push('<span class="pill">' + t("c_fixed_monthly") + ': $' + monthlyUSD + '</span>');
+      if (totalMonthly > 0) parts.push('<span class="pill">' + t("est_monthly") + ': ~$' + totalMonthly.toFixed(2) + '</span>');
       if (nearest) parts.push('<span class="pill">' + t("c_nearest") + ': ' + nearest.label + ' · ' + daysBadge(nearest.days) + '</span>');
       sumBox.innerHTML = parts.join("");
     }
 
     grid.innerHTML = "";
-    if (!COST_ITEMS.length) { if (costsFetched) grid.innerHTML = '<div class="svc"><div class="svc-fn">' + t("c_none") + '</div></div>'; return; }
+
+    // Kartu Anthropic (pemakaian API + ramalan) di awal
+    if (ANTHROPIC) {
+      var a = ANTHROPIC;
+      var mtd = a.total_usd != null ? Number(a.total_usd) : 0;
+      var proj = a.monthly_proj_usd != null ? Number(a.monthly_proj_usd) : null;
+      var last30 = a.last30_usd != null ? Number(a.last30_usd) : null;
+      var upd = a.fetched_at ? relativeTime(a.fetched_at) : "";
+      var ael = document.createElement("div");
+      ael.className = "svc";
+      ael.innerHTML =
+        '<div class="svc-top">' +
+          '<div class="svc-ico">A</div>' +
+          '<div style="flex:1"><div class="svc-name">' + t("an_title") + '</div>' +
+          '<div class="svc-fn">' + t("an_sub") + (last30 != null ? ' · ' + t("an_30d") + ' $' + last30.toFixed(2) : '') + (upd ? ' · ' + upd : '') + '</div></div>' +
+        '</div>' +
+        '<div class="svc-foot">' +
+          '<span class="due-badge info">' + t("an_forecast") + ' ~$' + (proj != null ? proj.toFixed(2) : '-') + t("c_per_month") + '</span>' +
+          '<span class="cost-amount">' + t("an_month_label") + ' $' + mtd.toFixed(2) + '</span>' +
+        '</div>';
+      grid.appendChild(ael);
+    }
+
+    // Kartu tanggal/biaya
     COST_ITEMS.forEach(function (it, i) {
       var d = nextDate(it, now);
       var days = d ? daysUntil(d, now) : null;
@@ -612,6 +653,11 @@
         '</div>';
       grid.appendChild(el);
     });
+
+    // Pesan kosong hanya bila benar-benar tidak ada data sama sekali
+    if (!ANTHROPIC && !COST_ITEMS.length && costsFetched) {
+      grid.innerHTML = '<div class="svc"><div class="svc-fn">' + t("c_none") + '</div></div>';
+    }
   }
 
   async function fetchStatuses() {
@@ -652,6 +698,7 @@
     fetchRole().then(renderRole);
     refreshStatuses();
     fetchCosts().then(renderCosts);
+    fetchAnthropic().then(renderCosts);
     if (statusTimer) clearInterval(statusTimer);
     statusTimer = setInterval(function () {
       if ($("#screen-app").classList.contains("active")) refreshStatuses();
@@ -704,7 +751,7 @@
       localStorage.setItem("kendali_lang", lang);
       applyLang();
     });
-    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); });
+    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); fetchAnthropic().then(renderCosts); });
     $("#btn-logout").addEventListener("click", function () {
       if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
       supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
