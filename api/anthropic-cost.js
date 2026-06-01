@@ -79,7 +79,8 @@ module.exports = async function (req, res) {
     }, TIMEOUT_MS);
     var body = await r.json();
     if (!r.ok) { res.status(200).json({ ok: false, stage: "anthropic", http: r.status, body: body }); return; }
-    sample = (body.data || []).slice(0, 2);
+    var withData = (body.data || []).filter(function (b) { return b && b.results && b.results.length; });
+    sample = (withData.length ? withData : (body.data || [])).slice(0, 2);
     var s = summarize(body.data, monthStart.getTime());
     buckets = s.buckets;
     total30 = Math.round(s.totalCents) / 100;
@@ -103,7 +104,7 @@ module.exports = async function (req, res) {
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal"
       },
-      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, fetched_at: new Date().toISOString() }])
+      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, last30_usd: total30, daily_avg_usd: dailyAvg, monthly_proj_usd: monthlyProj, fetched_at: new Date().toISOString() }])
     }, DB_TIMEOUT_MS);
     saved = ins.ok;
     if (!ins.ok) saveErr = "insert http " + ins.status + ": " + (await ins.text());
