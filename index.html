@@ -875,6 +875,10 @@
             var ptRad = vals.map(function (v, i) { return v > upper ? 5 : (i === peakIdx ? 4 : 0); });
             var meanArr = vals.map(function () { return Math.round(mean * 100) / 100; });
             if (costChartInst) { try { costChartInst.destroy(); } catch (e) {} }
+            // tooltip mengikuti posisi cursor (bukan menempel ke titik data)
+            if (Chart.Tooltip && Chart.Tooltip.positioners && !Chart.Tooltip.positioners.cursor) {
+              Chart.Tooltip.positioners.cursor = function (items, evtPos) { return evtPos ? { x: evtPos.x, y: evtPos.y } : false; };
+            }
             costChartInst = new Chart(cx, {
               type: "line",
               data: { labels: labels, datasets: [
@@ -895,7 +899,7 @@
                     titleColor: "#8fc2ff", bodyColor: "#e9f1fb",
                     titleFont: { family: "JetBrains Mono", size: 11 },
                     bodyFont: { family: "JetBrains Mono", size: 13, weight: "700" },
-                    padding: 10, displayColors: false, caretSize: 5,
+                    padding: 10, displayColors: false, caretSize: 5, position: "cursor",
                     filter: function (item) { return item.dataset.label === "USD"; },
                     callbacks: { label: function (c) { return "$" + Number(c.parsed.y).toFixed(2); } }
                   }
