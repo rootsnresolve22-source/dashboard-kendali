@@ -21,8 +21,8 @@ function fetchTimeout(url, opts, ms) {
 function round2(x) { return Math.round(x * 100) / 100; }
 
 // Ringkas respons cost_report (amount dalam USD): total 30 hari, bulan-berjalan (MTD), bucket
-function summarize(data, monthStartMs) {
-  var totalUsd = 0, mtdUsd = 0, buckets = 0;
+function summarize(data, monthStartMs, sinceMs) {
+  var totalUsd = 0, mtdUsd = 0, sinceUsd = 0, buckets = 0;
   (data || []).forEach(function (b) {
     buckets++;
     var bMs = (b && b.starting_at) ? Date.parse(b.starting_at) : NaN;
@@ -36,8 +36,9 @@ function summarize(data, monthStartMs) {
     });
     totalUsd += bUsd;
     if (!isNaN(bMs) && bMs >= monthStartMs) mtdUsd += bUsd;
+    if (sinceMs != null && !isNaN(bMs) && bMs >= sinceMs) sinceUsd += bUsd;
   });
-  return { totalUsd: totalUsd, mtdUsd: mtdUsd, buckets: buckets };
+  return { totalUsd: totalUsd, mtdUsd: mtdUsd, sinceUsd: sinceUsd, buckets: buckets };
 }
 
 module.exports = async function (req, res) {
@@ -58,21 +59,44 @@ module.exports = async function (req, res) {
   if (!ADMIN) { res.status(500).json({ ok: false, error: "missing ANTHROPIC_ADMIN_KEY" }); return; }
   if (!SUPA_URL || !SECRET) { res.status(500).json({ ok: false, error: "missing SUPABASE_URL or SUPABASE_SECRET_KEY" }); return; }
 
-  // --- Rentang: 30 hari lalu -> AWAL HARI INI (UTC), hari-hari yang sudah selesai ---
+  // --- Baca saldo manual (bila ada) untuk hitung sisa ---
+  var balanceAmount = null, balanceAsOf = null, balanceAsOfMs = null;
+  try {
+    var br = await fetchTimeout(SUPA_URL + "/rest/v1/anthropic_balance?id=eq.1&select=balance_amount,balance_as_of", {
+      headers: { "apikey": SECRET, "Authorization": "Bearer " + SECRET }
+    }, DB_TIMEOUT_MS);
+    if (br.ok) {
+      var barr = await br.json();
+      if (Array.isArray(barr) && barr.length && barr[0].balance_amount != null) {
+        balanceAmount = Number(barr[0].balance_amount);
+        balanceAsOf = barr[0].balance_as_of || null;
+        if (balanceAsOf) balanceAsOfMs = Date.parse(balanceAsOf);
+      }
+    }
+  } catch (e) { /* saldo opsional; abaikan bila gagal */ }
+
+  // --- Rentang: 30 hari lalu (atau sejak tgl saldo bila lebih awal) -> AWAL HARI INI (UTC) ---
   var now = new Date();
   var startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  var startRange = new Date(startOfToday.getTime() - 30 * 86400000);
+  var start30 = new Date(startOfToday.getTime() - 30 * 86400000);
+  var startRange = start30;
+  if (balanceAsOfMs != null && !isNaN(balanceAsOfMs) && balanceAsOfMs < start30.getTime()) {
+    startRange = new Date(balanceAsOfMs);
+  }
   var monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   var startIso = startRange.toISOString();
   var endIso = startOfToday.toISOString();
+  var dayCount = Math.ceil((startOfToday.getTime() - startRange.getTime()) / 86400000);
+  var limit = Math.min(Math.max(dayCount + 2, 31), 370);
 
   // --- Tarik cost_report ---
   var total30 = null, mtd = null, dailyAvg = null, monthlyProj = null, buckets = 0, sample = null;
+  var remaining = null, runoutDays = null, costSince = null;
   try {
     var url = "https://api.anthropic.com/v1/organizations/cost_report"
       + "?starting_at=" + encodeURIComponent(startIso)
       + "&ending_at=" + encodeURIComponent(endIso)
-      + "&limit=31";
+      + "&limit=" + limit;
     var r = await fetchTimeout(url, {
       headers: {
         "anthropic-version": "2023-06-01",
@@ -84,12 +108,20 @@ module.exports = async function (req, res) {
     if (!r.ok) { res.status(200).json({ ok: false, stage: "anthropic", http: r.status, body: body }); return; }
     var withData = (body.data || []).filter(function (b) { return b && b.results && b.results.length; });
     sample = (withData.length ? withData : (body.data || [])).slice(0, 2);
-    var s = summarize(body.data, monthStart.getTime());
+    var s = summarize(body.data, monthStart.getTime(), balanceAsOfMs);
     buckets = s.buckets;
-    total30 = round2(s.totalUsd);
+    // 30 hari: jumlah cost pada jendela 30-hari tetap (bukan rentang yang mungkin diperlebar)
+    var s30 = summarize(body.data, monthStart.getTime(), start30.getTime());
+    total30 = round2(s30.sinceUsd);
     mtd = round2(s.mtdUsd);
-    dailyAvg = round2(s.totalUsd / 30);
-    monthlyProj = round2((s.totalUsd / 30) * 30);
+    dailyAvg = round2(total30 / 30);
+    monthlyProj = round2(dailyAvg * 30);
+    // sisa saldo & ramalan habis
+    if (balanceAmount != null) {
+      costSince = round2(s.sinceUsd);
+      remaining = round2(balanceAmount - costSince);
+      if (dailyAvg > 0) runoutDays = Math.max(0, Math.round((remaining / dailyAvg) * 10) / 10);
+    }
   } catch (e) {
     var msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message ? e.message : String(e));
     res.status(200).json({ ok: false, stage: "anthropic", error: msg });
@@ -107,7 +139,7 @@ module.exports = async function (req, res) {
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal"
       },
-      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, last30_usd: total30, daily_avg_usd: dailyAvg, monthly_proj_usd: monthlyProj, fetched_at: new Date().toISOString() }])
+      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, last30_usd: total30, daily_avg_usd: dailyAvg, monthly_proj_usd: monthlyProj, remaining_usd: remaining, runout_days: runoutDays, cost_since_balance: costSince, fetched_at: new Date().toISOString() }])
     }, DB_TIMEOUT_MS);
     saved = ins.ok;
     if (!ins.ok) saveErr = "insert http " + ins.status + ": " + (await ins.text());
@@ -122,6 +154,11 @@ module.exports = async function (req, res) {
     last30_usd: total30,
     daily_avg_usd: dailyAvg,
     monthly_projection_usd: monthlyProj,
+    balance_amount: balanceAmount,
+    balance_as_of: balanceAsOf,
+    cost_since_balance: costSince,
+    remaining_usd: remaining,
+    runout_days: runoutDays,
     buckets: buckets,
     saved: saved,
     saveErr: saveErr,
