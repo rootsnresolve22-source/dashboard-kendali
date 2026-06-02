@@ -393,11 +393,11 @@
     <div class="scan-label" style="margin-top:26px" data-i18n="trend_label">Analitik &amp; Tren</div>
     <div class="trend-grid">
       <div class="hud-panel" id="cost-chart-panel">
-        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_cost">Biaya Anthropic · 30 Hari</span></span><span class="hud-m">USD / HARI</span></div>
+        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_cost">Biaya Anthropic · 30 Hari</span></span><span class="hud-m" data-i18n="unit_usd_day">USD / HARI</span></div>
         <div class="hud-b" id="cost-chart-body"></div>
       </div>
       <div class="hud-panel">
-        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_lat">Latensi Layanan</span></span><span class="hud-m">MS</span></div>
+        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_lat">Latensi Layanan</span></span><span class="hud-m" data-i18n="unit_ms">MS</span></div>
         <div class="hud-b" id="lat-spark-body"></div>
       </div>
     </div>
@@ -469,8 +469,8 @@
       costs_label: "Biaya & Tanggal Penting",
       app_label: "Denyut Nadi Aplikasi · rempangops.com",
       ops_summary: "Ringkasan Operasional",
-      trend_label: "Analitik & Tren", chart_cost: "Biaya Anthropic · 30 Hari", chart_lat: "Latensi Layanan",
-      ch_total: "total", ch_peak: "puncak", ch_trend: "Tren 7 Hari", ch_avg: "Rata-rata/Hari", ch_low: "Terendah", ch_nodata: "Data tren belum tersedia — jalankan pembaruan biaya.",
+      trend_label: "Analitik & Tren", chart_cost: "Biaya Anthropic · 30 Hari", chart_lat: "Latensi Layanan", unit_usd_day: "USD / HARI", unit_ms: "MS",
+      ch_total: "total", ch_peak: "puncak", ch_trend: "Tren 7 Hari", ch_avg: "Rata-rata/Hari", ch_low: "Terendah", ch_daily: "pemakaian harian", ch_nodata: "Data tren belum tersedia — jalankan pembaruan biaya.",
       kpi_uptime: "Uptime", kpi_services: "Layanan Daring", kpi_cost: "Biaya / Bulan",
       kpi_balance: "Sisa Saldo", kpi_perday: "Pakai / Hari",
       kpi_healthy: "layanan sehat", kpi_allnodes: "semua node aktif", kpi_attention: "perlu perhatian", kpi_fixed: "tetap + Anthropic", kpi_fixed_word: "tetap",
@@ -517,8 +517,8 @@
       costs_label: "Costs & Key Dates",
       app_label: "Application Pulse · rempangops.com",
       ops_summary: "Operational Summary",
-      trend_label: "Analytics & Trends", chart_cost: "Anthropic Cost · 30 Days", chart_lat: "Service Latency",
-      ch_total: "total", ch_peak: "peak", ch_trend: "7-Day Trend", ch_avg: "Avg/Day", ch_low: "Lowest", ch_nodata: "Trend data not ready — run cost update.",
+      trend_label: "Analytics & Trends", chart_cost: "Anthropic Cost · 30 Days", chart_lat: "Service Latency", unit_usd_day: "USD / DAY", unit_ms: "MS",
+      ch_total: "total", ch_peak: "peak", ch_trend: "7-Day Trend", ch_avg: "Avg/Day", ch_low: "Lowest", ch_daily: "daily usage", ch_nodata: "Trend data not ready — run cost update.",
       kpi_uptime: "Uptime", kpi_services: "Services Online", kpi_cost: "Cost / Month",
       kpi_balance: "Balance Left", kpi_perday: "Spend / Day",
       kpi_healthy: "healthy services", kpi_allnodes: "all nodes active", kpi_attention: "need attention", kpi_fixed: "fixed + Anthropic", kpi_fixed_word: "fixed",
@@ -802,7 +802,7 @@
         var peakDot = peak > 0 ? '<circle cx="' + p.xs(peakIdx).toFixed(1) + '" cy="' + p.ys(peak).toFixed(1) + '" r="3.4" fill="#fff" stroke="var(--accent)" stroke-width="2"/>' : '';
         var first = ds[0].d.replace("-", "/"), midi = ds[Math.floor(ds.length / 2)].d.replace("-", "/"), lastd = ds[ds.length - 1].d.replace("-", "/");
         body.innerHTML =
-          '<div class="chart-legend"><span><b style="color:var(--accent)">—</b> pemakaian harian</span><span>' + t("ch_total") + ': <b>$' + total.toFixed(2) + '</b></span><span>' + t("ch_peak") + ': <b>$' + peak.toFixed(2) + '</b></span></div>' +
+          '<div class="chart-legend"><span><b style="color:var(--accent)">—</b> ' + t("ch_daily") + '</span><span>' + t("ch_total") + ': <b>$' + total.toFixed(2) + '</b></span><span>' + t("ch_peak") + ': <b>$' + peak.toFixed(2) + '</b></span></div>' +
           '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none">' +
             '<defs><linearGradient id="f7cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(77,155,255,.40)"/><stop offset="1" stop-color="rgba(77,155,255,0)"/></linearGradient></defs>' +
             gl +
