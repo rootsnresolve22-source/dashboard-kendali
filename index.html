@@ -197,6 +197,13 @@
   .cost-amount { font-size: 13px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   .cost-summary { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 2px 14px; font-size: 13px; color: var(--ink-soft); }
   .cost-summary .pill { display: inline-flex; align-items: center; gap: 6px; }
+  .svc.dim { opacity: .62; }
+  .svc.alarm { border-color: rgba(220,38,38,.45); box-shadow: 0 0 0 1px rgba(220,38,38,.18); }
+  .state-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .state-dot.ok { background: #16a34a; }
+  .state-dot.warn { background: #d97706; }
+  .state-dot.alarm { background: #dc2626; }
+  .state-dot.no_data { background: #9aa3b2; }
   @media (max-width: 460px) {
     #btn-reload span[data-i18n] { display: none; }
     #btn-reload { padding: 7px 9px; }
@@ -296,6 +303,10 @@
     <div class="cost-summary" id="cost-summary"></div>
     <div class="grid" id="cost-grid"><!-- diisi oleh JS --></div>
 
+    <div class="section-label" style="margin-top:28px" data-i18n="app_label">Denyut Nadi Aplikasi (rempangops.com)</div>
+    <div class="cost-summary" id="app-summary"></div>
+    <div class="grid" id="app-grid"><!-- diisi oleh JS --></div>
+
     <div class="foot-note">
       <span data-i18n="foot">Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.</span><br/>
       <span id="session-line" style="opacity:.8"></span>
@@ -343,6 +354,12 @@
       signing: "Memproses…", session_as: "Masuk sebagai",
       role_admin: "Admin", role_eksekutif: "Eksekutif",
       costs_label: "Biaya & Tanggal Penting",
+      app_label: "Denyut Nadi Aplikasi (rempangops.com)",
+      ah_ok: "Normal", ah_warn: "Mendekati", ah_alarm: "ALARM", ah_nodata: "Menunggu data",
+      ah_last: "aktivitas terakhir", ah_never: "belum ada data masuk",
+      ah_hours: "jam lalu", ah_days: "hari lalu", ah_justnow: "baru saja",
+      ah_sum_ok: "normal", ah_sum_alarm: "perlu perhatian", ah_sum_nodata: "menunggu data",
+      ah_none: "Data aplikasi belum termuat.",
       c_billing: "Tagihan rutin", c_expire: "Kedaluwarsa", c_free: "Gratis",
       c_in_days: "hari lagi", c_today: "jatuh hari ini", c_overdue: "terlewat", c_days: "hari",
       c_per_month: "/bln", c_nearest: "Terdekat", c_fixed_monthly: "Biaya tetap bulanan",
@@ -372,6 +389,12 @@
       signing: "Working…", session_as: "Signed in as",
       role_admin: "Admin", role_eksekutif: "Executive",
       costs_label: "Costs & Key Dates",
+      app_label: "Application Pulse (rempangops.com)",
+      ah_ok: "Normal", ah_warn: "Nearing", ah_alarm: "ALARM", ah_nodata: "Awaiting data",
+      ah_last: "last activity", ah_never: "no data yet",
+      ah_hours: "h ago", ah_days: "d ago", ah_justnow: "just now",
+      ah_sum_ok: "normal", ah_sum_alarm: "need attention", ah_sum_nodata: "awaiting data",
+      ah_none: "Application data not loaded yet.",
       c_billing: "Recurring bill", c_expire: "Expires", c_free: "Free",
       c_in_days: "days left", c_today: "due today", c_overdue: "overdue", c_days: "days",
       c_per_month: "/mo", c_nearest: "Soonest", c_fixed_monthly: "Fixed monthly cost",
@@ -389,6 +412,8 @@
   var STATUS_MAP = {};
   var COST_ITEMS = [];
   var ANTHROPIC = null;
+  var APP_HEALTH = [];
+  var appHealthFetched = false;
   var costsFetched = false;
   var statusTimer = null;
 
@@ -409,6 +434,7 @@
     renderServices();
     updateSummary();
     renderCosts();
+    renderAppHealth();
     renderRole();
   }
 
@@ -585,6 +611,71 @@
     } catch (e) { console.error("fetchAnthropic:", e); }
   }
 
+  async function fetchAppHealth() {
+    try {
+      var q = await supabase.from("app_health")
+        .select("table_key,label,state,timecol,latest_at,hours_since,alarm_hours,note,sort_order")
+        .order("sort_order", { ascending: true });
+      if (q.error) { console.error("fetchAppHealth:", q.error); }
+      else { APP_HEALTH = q.data || []; }
+    } catch (e) { console.error("fetchAppHealth ex:", e); }
+    appHealthFetched = true;
+  }
+
+  function ahAgo(h) {
+    if (h == null) return t("ah_never");
+    if (h < 1) return t("ah_justnow");
+    if (h < 48) return Math.round(h) + " " + t("ah_hours");
+    return Math.round(h / 24) + " " + t("ah_days");
+  }
+  function ahStateLabel(s) {
+    return s === "alarm" ? t("ah_alarm") : s === "warn" ? t("ah_warn") : s === "no_data" ? t("ah_nodata") : t("ah_ok");
+  }
+  function ahBadgeClass(s) {
+    return s === "alarm" ? "bad" : s === "warn" ? "warn" : s === "no_data" ? "info" : "ok";
+  }
+
+  function renderAppHealth() {
+    var grid = $("#app-grid");
+    if (!grid) return;
+
+    var sumBox = $("#app-summary");
+    if (sumBox) {
+      var nOk = 0, nAlarm = 0, nNo = 0, alarmNames = [];
+      APP_HEALTH.forEach(function (r) {
+        if (r.state === "alarm") { nAlarm++; alarmNames.push(r.label); }
+        else if (r.state === "no_data") nNo++;
+        else nOk++; // ok + warn dihitung "normal/terpantau"
+      });
+      var parts = [];
+      parts.push('<span class="pill"><span class="state-dot ok"></span>' + nOk + " " + t("ah_sum_ok") + "</span>");
+      if (nAlarm > 0) parts.push('<span class="pill"><span class="state-dot alarm"></span>' + nAlarm + " " + t("ah_sum_alarm") + "</span>");
+      if (nNo > 0) parts.push('<span class="pill"><span class="state-dot no_data"></span>' + nNo + " " + t("ah_sum_nodata") + "</span>");
+      sumBox.innerHTML = parts.join("");
+    }
+
+    grid.innerHTML = "";
+    if (!APP_HEALTH.length) { if (appHealthFetched) grid.innerHTML = '<div class="svc"><div class="svc-fn">' + t("ah_none") + '</div></div>'; return; }
+    APP_HEALTH.forEach(function (r, i) {
+      var ini = (r.label || r.table_key || "?").trim().charAt(0).toUpperCase();
+      var ago = (r.state === "no_data") ? t("ah_never") : (t("ah_last") + " " + ahAgo(r.hours_since));
+      var el = document.createElement("div");
+      el.className = "svc" + (r.state === "alarm" ? " alarm" : "") + (r.state === "no_data" ? " dim" : "");
+      el.style.animationDelay = (i * 30) + "ms";
+      el.innerHTML =
+        '<div class="svc-top">' +
+          '<div class="svc-ico">' + ini + '</div>' +
+          '<div style="flex:1"><div class="svc-name">' + (r.label || r.table_key) + '</div>' +
+          '<div class="svc-fn">' + ago + '</div></div>' +
+        '</div>' +
+        '<div class="svc-foot">' +
+          '<span class="due-badge ' + ahBadgeClass(r.state) + '"><span class="state-dot ' + r.state + '"></span>' + ahStateLabel(r.state) + '</span>' +
+          '<span class="cost-amount" style="font-family:var(--mono,monospace);font-size:12px">' + (r.table_key || "") + '</span>' +
+        '</div>';
+      grid.appendChild(el);
+    });
+  }
+
   function renderCosts() {
     var grid = $("#cost-grid");
     if (!grid) return;
@@ -699,6 +790,7 @@
     refreshStatuses();
     fetchCosts().then(renderCosts);
     fetchAnthropic().then(renderCosts);
+    fetchAppHealth().then(renderAppHealth);
     if (statusTimer) clearInterval(statusTimer);
     statusTimer = setInterval(function () {
       if ($("#screen-app").classList.contains("active")) refreshStatuses();
@@ -751,7 +843,7 @@
       localStorage.setItem("kendali_lang", lang);
       applyLang();
     });
-    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); fetchAnthropic().then(renderCosts); });
+    $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); fetchAnthropic().then(renderCosts); fetchAppHealth().then(renderAppHealth); });
     $("#btn-logout").addEventListener("click", function () {
       if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
       supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
