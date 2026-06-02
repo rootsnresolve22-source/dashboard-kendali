@@ -204,6 +204,13 @@
   .state-dot.warn { background: #d97706; }
   .state-dot.alarm { background: #dc2626; }
   .state-dot.no_data { background: #9aa3b2; }
+  .bal-set { display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 2px 14px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+  .bal-set.show { display: flex; }
+  .bal-set label { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+  .bal-set input { width: 130px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 14px; background: var(--surface); color: var(--ink); }
+  .bal-set .btn { padding: 7px 14px; font-size: 13px; width: auto; flex: 0 0 auto; align-self: center; }
+  .bal-set .msg { font-size: 12px; color: var(--ok); font-weight: 600; }
+  .bal-set .msg.err { color: var(--bad); }
   @media (max-width: 460px) {
     #btn-reload span[data-i18n] { display: none; }
     #btn-reload { padding: 7px 9px; }
@@ -301,6 +308,12 @@
 
     <div class="section-label" style="margin-top:28px" data-i18n="costs_label">Biaya &amp; Tanggal Penting</div>
     <div class="cost-summary" id="cost-summary"></div>
+    <div class="bal-set" id="bal-set">
+      <label data-i18n="bal_set">Atur saldo Anthropic</label>
+      <input type="number" id="bal-input" step="0.01" min="0" inputmode="decimal" />
+      <button class="btn" id="bal-save" data-i18n="bal_save">Simpan</button>
+      <span class="msg" id="bal-msg"></span>
+    </div>
     <div class="grid" id="cost-grid"><!-- diisi oleh JS --></div>
 
     <div class="section-label" style="margin-top:28px" data-i18n="app_label">Denyut Nadi Aplikasi (rempangops.com)</div>
@@ -366,6 +379,11 @@
       est_monthly: "Perkiraan biaya bulanan",
       an_title: "Anthropic · Claude", an_sub: "Pemakaian API", an_month_label: "Bulan ini",
       an_forecast: "Ramalan", an_30d: "30 hari",
+      an_remaining: "Sisa saldo", an_runout: "habis", an_runout_days: "hari lagi",
+      an_runout_now: "kemungkinan sudah habis", an_balance_unset: "Saldo belum diatur",
+      bal_set: "Atur saldo Anthropic", bal_ph: "Saldo sekarang ($)", bal_save: "Simpan",
+      bal_saved: "Tersimpan ✓", bal_invalid: "Masukkan angka yang benar",
+      bal_stale: "saldo sudah lama — perbarui untuk akurasi",
       c_none: "Belum ada data biaya."
     },
     en: {
@@ -401,6 +419,11 @@
       est_monthly: "Est. monthly cost",
       an_title: "Anthropic · Claude", an_sub: "API usage", an_month_label: "This month",
       an_forecast: "Forecast", an_30d: "30 days",
+      an_remaining: "Balance left", an_runout: "runs out", an_runout_days: "days left",
+      an_runout_now: "likely depleted", an_balance_unset: "Balance not set",
+      bal_set: "Set Anthropic balance", bal_ph: "Current balance ($)", bal_save: "Save",
+      bal_saved: "Saved ✓", bal_invalid: "Enter a valid number",
+      bal_stale: "balance is old — update for accuracy",
       c_none: "No cost data yet."
     }
   };
@@ -454,6 +477,7 @@
       }
     }
     if (currentEmail) $("#session-line").textContent = t("session_as") + ": " + currentEmail + " · " + roleLabel();
+    renderBalanceControl();
   }
 
   async function fetchRole() {
@@ -706,7 +730,20 @@
       var mtd = a.total_usd != null ? Number(a.total_usd) : 0;
       var proj = a.monthly_proj_usd != null ? Number(a.monthly_proj_usd) : null;
       var last30 = a.last30_usd != null ? Number(a.last30_usd) : null;
+      var rem = a.remaining_usd != null ? Number(a.remaining_usd) : null;
+      var runout = a.runout_days != null ? Number(a.runout_days) : null;
       var upd = a.fetched_at ? relativeTime(a.fetched_at) : "";
+      // baris sisa saldo (bila sudah diatur)
+      var remLine = "";
+      if (rem != null) {
+        var rcls = runout == null ? "info" : runout <= 7 ? "bad" : runout <= 14 ? "warn" : "ok";
+        var rtxt = runout == null ? "" : runout <= 0 ? (" · " + t("an_runout_now")) : (" · " + t("an_runout") + " ~" + Math.round(runout) + " " + t("an_runout_days"));
+        remLine =
+          '<div class="svc-foot" style="margin-top:8px">' +
+            '<span class="due-badge ' + rcls + '">' + t("an_remaining") + ' $' + rem.toFixed(2) + '</span>' +
+            '<span class="cost-amount">' + (runout != null ? (t("an_runout") + " ~" + (runout <= 0 ? 0 : Math.round(runout)) + " " + t("an_runout_days")) : "") + '</span>' +
+          '</div>';
+      }
       var ael = document.createElement("div");
       ael.className = "svc";
       ael.innerHTML =
@@ -718,7 +755,8 @@
         '<div class="svc-foot">' +
           '<span class="due-badge info">' + t("an_forecast") + ' ~$' + (proj != null ? proj.toFixed(2) : '-') + t("c_per_month") + '</span>' +
           '<span class="cost-amount">' + t("an_month_label") + ' $' + mtd.toFixed(2) + '</span>' +
-        '</div>';
+        '</div>' +
+        remLine;
       grid.appendChild(ael);
     }
 
@@ -749,6 +787,46 @@
     if (!ANTHROPIC && !COST_ITEMS.length && costsFetched) {
       grid.innerHTML = '<div class="svc"><div class="svc-fn">' + t("c_none") + '</div></div>';
     }
+
+    renderBalanceControl();
+  }
+
+  // Tampilkan kontrol input saldo HANYA untuk admin (gating UI; gating DB via RLS)
+  function renderBalanceControl() {
+    var box = $("#bal-set");
+    if (!box) return;
+    if (currentRole === "admin") {
+      box.classList.add("show");
+      var inp = $("#bal-input");
+      if (inp && ANTHROPIC && ANTHROPIC.balance_amount != null && inp.value === "") inp.value = Number(ANTHROPIC.balance_amount);
+    } else {
+      box.classList.remove("show");
+    }
+  }
+
+  async function saveBalance() {
+    var inp = $("#bal-input"), msg = $("#bal-msg"), btn = $("#bal-save");
+    if (!inp || !msg) return;
+    var val = parseFloat(inp.value);
+    if (isNaN(val) || val < 0) { msg.className = "msg err"; msg.textContent = t("bal_invalid"); return; }
+    btn.disabled = true; msg.className = "msg"; msg.textContent = "…";
+    var today = new Date().toISOString().slice(0, 10);
+    try {
+      var q = await supabase.from("anthropic_balance")
+        .upsert([{ id: 1, balance_amount: val, balance_as_of: today, updated_at: new Date().toISOString() }], { onConflict: "id" });
+      if (q.error) { msg.className = "msg err"; msg.textContent = q.error.message || "Gagal"; btn.disabled = false; return; }
+      // Optimistic: saldo baru diatur hari ini -> belum ada biaya hari ini -> sisa = saldo penuh
+      if (!ANTHROPIC) ANTHROPIC = {};
+      ANTHROPIC.balance_amount = val;
+      ANTHROPIC.remaining_usd = val;
+      var davg = ANTHROPIC.daily_avg_usd != null ? Number(ANTHROPIC.daily_avg_usd) : 0;
+      ANTHROPIC.runout_days = davg > 0 ? Math.round((val / davg) * 10) / 10 : null;
+      msg.className = "msg"; msg.textContent = t("bal_saved");
+      renderCosts();
+    } catch (e) {
+      msg.className = "msg err"; msg.textContent = (e && e.message) || "Gagal";
+    }
+    btn.disabled = false;
   }
 
   async function fetchStatuses() {
@@ -844,6 +922,8 @@
       applyLang();
     });
     $("#btn-reload").addEventListener("click", function () { refreshStatuses(); fetchCosts().then(renderCosts); fetchAnthropic().then(renderCosts); fetchAppHealth().then(renderAppHealth); });
+    var balBtn = $("#bal-save");
+    if (balBtn) balBtn.addEventListener("click", saveBalance);
     $("#btn-logout").addEventListener("click", function () {
       if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
       supabase.auth.signOut().finally(function () { currentEmail = ""; show("screen-login"); });
