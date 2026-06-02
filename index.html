@@ -161,6 +161,7 @@
   .banner svg { flex: none; width: 18px; height: 18px; margin-top: 1px; }
 
   .section-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); margin: 0 2px 12px; }
+  .svc-detail { font-size: 11px; color: var(--ink-dim); margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border); line-height: 1.45; }
 
   /* ===== Fase 7 — command-center ===== */
   .f7-ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
@@ -455,7 +456,8 @@
       services_label: "Layanan dipantau",
       foot: "Dashboard Kendali · alat internal PT MEG · hanya memantau, tidak mengubah aplikasi.",
       soon: "Menyusul", st_idle: "Belum dipantau",
-      st_up: "Sehat", st_degraded: "Lambat", st_down: "Bermasalah", st_nodata: "Belum ada data",
+      st_up: "Sehat", st_degraded: "Lambat", st_slow: "Lambat", st_issue: "Gangguan ringan", st_down: "Bermasalah", st_nodata: "Belum ada data",
+      svc_official: "Menurut status resmi layanan",
       reload: "Muat ulang", updated: "Diperbarui", just_now: "baru saja",
       min_ago: "mnt lalu", hr_ago: "jam lalu", day_ago: "hari lalu",
       sum_up: "sehat", sum_degraded: "lambat", sum_down: "bermasalah", sum_none: "Belum ada data status — coba Muat ulang.",
@@ -502,7 +504,8 @@
       services_label: "Monitored services",
       foot: "Dashboard Kendali · PT MEG internal tool · monitors only, never changes the app.",
       soon: "Soon", st_idle: "Not monitored yet",
-      st_up: "Healthy", st_degraded: "Slow", st_down: "Down", st_nodata: "No data yet",
+      st_up: "Healthy", st_degraded: "Slow", st_slow: "Slow", st_issue: "Minor issue", st_down: "Down", st_nodata: "No data yet",
+      svc_official: "Per the service\u2019s official status",
       reload: "Refresh", updated: "Updated", just_now: "just now",
       min_ago: "min ago", hr_ago: "h ago", day_ago: "d ago",
       sum_up: "healthy", sum_degraded: "slow", sum_down: "down", sum_none: "No status data yet — try Refresh.",
@@ -616,9 +619,26 @@
     return Math.floor(h / 24) + " " + t("day_ago");
   }
 
-  function statusLabel(st) {
-    return st === "up" ? t("st_up") : st === "degraded" ? t("st_degraded")
-         : st === "down" ? t("st_down") : t("st_nodata");
+  var SVC_SLOW_MS = 2000; // selaras dengan check.js: di atas ini baru benar-benar "lambat"
+  function statusLabel(st, row) {
+    if (st === "up") return t("st_up");
+    if (st === "degraded") {
+      // degraded bisa karena LATENSI tinggi (lambat) atau LAPORAN status resmi (gangguan)
+      if (row && row.latency_ms != null && row.latency_ms > SVC_SLOW_MS) return t("st_slow");
+      return t("st_issue");
+    }
+    if (st === "down") return t("st_down");
+    return t("st_nodata");
+  }
+  // alasan ringkas yang bisa dibaca BOD (kenapa tidak "Sehat")
+  function statusNote(st, row) {
+    if (!row || st === "up" || st === "idle") return "";
+    if (st === "degraded") {
+      if (row.latency_ms != null && row.latency_ms > SVC_SLOW_MS) return ""; // sudah jelas dari angka ms
+      return t("svc_official") + (row.detail ? " — " + row.detail : "");
+    }
+    if (st === "down") return row.detail ? row.detail : "";
+    return "";
   }
 
   function renderServices() {
@@ -647,9 +667,10 @@
           '<span class="svc-dot-lg dot ' + dotClass + '"></span>' +
         '</div>' +
         '<div class="svc-foot">' +
-          '<span class="status ' + (row ? st : "") + '"><span class="dot ' + dotClass + '"></span>' + statusLabel(st) + '</span>' +
+          '<span class="status ' + (row ? st : "") + '"><span class="dot ' + dotClass + '"></span>' + statusLabel(st, row) + '</span>' +
           '<span class="svc-meta">' + meta + '</span>' +
-        '</div>';
+        '</div>' +
+        (statusNote(st, row) ? '<div class="svc-detail">' + statusNote(st, row) + '</div>' : '');
       grid.appendChild(el);
     });
   }
