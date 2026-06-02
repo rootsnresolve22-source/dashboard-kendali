@@ -7,44 +7,50 @@
 <meta name="description" content="Dashboard Kendali — pemantau layanan teknologi rempangops.com" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #faf9f7;
-    --surface: #ffffff;
-    --surface-2: #f4f2ee;
-    --border: #e7e4dd;
-    --border-strong: #d8d4ca;
-    --ink: #1a1a1a;
-    --ink-soft: #4a4845;
-    --ink-dim: #8c887f;
-    --accent: #3d4a7a;
-    --accent-soft: #eef0f7;
-    --ok: #16a34a;
-    --warn: #d97706;
-    --bad: #dc2626;
-    --idle: #b6b2a8;
-    --shadow-sm: 0 1px 2px rgba(26,26,26,.04), 0 1px 3px rgba(26,26,26,.06);
-    --shadow-md: 0 4px 16px rgba(26,26,26,.06), 0 2px 6px rgba(26,26,26,.04);
+    --bg: #070d16;
+    --surface: rgba(14,23,38,.62);
+    --surface-2: rgba(10,19,32,.7);
+    --border: rgba(77,155,255,.20);
+    --border-strong: rgba(77,155,255,.34);
+    --ink: #e9f1fb;
+    --ink-soft: #aebccf;
+    --ink-dim: #7b8ca3;
+    --accent: #4d9bff;
+    --accent-soft: rgba(77,155,255,.10);
+    --ok: #35dd86;
+    --warn: #ff9d3c;
+    --bad: #ff5d6c;
+    --idle: #5f7186;
+    --glow: rgba(77,155,255,.5);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --disp: 'Chakra Petch', sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.35);
+    --shadow-md: 0 10px 36px -14px rgba(77,155,255,.30);
     --radius: 14px;
     --radius-sm: 10px;
-    --maxw: 1080px;
+    --maxw: 1180px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    font-family: 'Public Sans', -apple-system, system-ui, sans-serif;
-    background: var(--bg);
+    font-family: var(--mono);
+    background-color: var(--bg);
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     line-height: 1.5;
-    /* tekstur kalem: butiran halus + gradien hangat sangat lembut */
+    /* command-center: ambient biru + grid halus */
     background-image:
-      radial-gradient(900px 500px at 88% -8%, rgba(61,74,122,.05), transparent 60%),
-      radial-gradient(700px 460px at -6% 108%, rgba(217,119,6,.035), transparent 55%);
+      radial-gradient(1100px 600px at 82% -10%, rgba(77,155,255,.13), transparent 62%),
+      radial-gradient(820px 520px at -6% 110%, rgba(38,96,196,.10), transparent 60%),
+      linear-gradient(rgba(120,160,220,.020) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,160,220,.020) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
     background-attachment: fixed;
   }
-  .serif { font-family: 'Fraunces', Georgia, serif; }
+  .serif { font-family: var(--disp); letter-spacing: .5px; }
 
   /* ====== LAYAR (screen) ====== */
   .screen { display: none; min-height: 100dvh; }
@@ -97,7 +103,7 @@
     cursor: pointer; transition: transform .12s, box-shadow .15s, background .15s; box-shadow: var(--shadow-sm);
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-  .btn:hover { background: #34406b; }
+  .btn:hover { background: #3a86e8; box-shadow: 0 0 16px -3px var(--glow); }
   .btn:active { transform: translateY(1px); }
   .btn:disabled { opacity: .6; cursor: default; transform: none; }
   .btn .mini-spin { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
@@ -151,6 +157,78 @@
 
   .section-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); margin: 0 2px 12px; }
 
+  /* ===== Fase 7 — command-center ===== */
+  .f7-ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .f7-ambient .blob { position: absolute; border-radius: 50%; filter: blur(90px); will-change: transform; }
+  .f7-ambient .b1 { width: 680px; height: 680px; background: radial-gradient(circle, rgba(77,155,255,.20), transparent 68%); top: -260px; right: -140px; animation: f7d1 28s ease-in-out infinite; }
+  .f7-ambient .b2 { width: 560px; height: 560px; background: radial-gradient(circle, rgba(38,96,196,.18), transparent 68%); bottom: -240px; left: -160px; animation: f7d2 34s ease-in-out infinite; }
+  .f7-ambient .b3 { width: 480px; height: 480px; background: radial-gradient(circle, rgba(110,170,255,.10), transparent 70%); top: 42%; left: 44%; animation: f7d3 40s ease-in-out infinite; }
+  .f7-vignette { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse 92% 82% at 50% 40%, transparent 54%, rgba(2,5,11,.6) 100%); }
+  .f7-scanline { position: fixed; inset: 0; z-index: 80; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.06) 2px 3px); mix-blend-mode: multiply; opacity: .4; }
+  .f7-hc { position: fixed; width: 22px; height: 22px; border-color: rgba(77,155,255,.4); z-index: 70; pointer-events: none; animation: f7pulse 4s infinite; }
+  .f7-hc.tl { top: 10px; left: 10px; border-top: 2px solid; border-left: 2px solid; }
+  .f7-hc.tr { top: 10px; right: 10px; border-top: 2px solid; border-right: 2px solid; }
+  .f7-hc.bl { bottom: 10px; left: 10px; border-bottom: 2px solid; border-left: 2px solid; }
+  .f7-hc.br { bottom: 10px; right: 10px; border-bottom: 2px solid; border-right: 2px solid; }
+  @keyframes f7d1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-70px,50px) scale(1.12)} }
+  @keyframes f7d2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(60px,-40px) scale(1.08)} }
+  @keyframes f7d3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,-50px) scale(1.15)} }
+  @keyframes f7pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  @keyframes f7rise { to { opacity:1; transform:none } }
+
+  /* wordmark + system line */
+  .topbar .brand-name.wm { font-family: var(--disp); font-weight: 700; letter-spacing: 3px; font-size: 18px; }
+  .topbar .brand-name.wm b { color: var(--accent); text-shadow: 0 0 12px var(--glow); }
+  .sysline { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; letter-spacing: 1.4px; color: var(--ink-dim); margin-left: 4px; }
+  .sysline .sd { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: f7pulse 2.2s infinite; }
+
+  /* scan label */
+  .scan-label { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 10px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--ink-dim); margin: 0 2px 11px; }
+  .scan-label::before { content: ""; width: 5px; height: 5px; background: var(--accent); box-shadow: 0 0 7px var(--accent); transform: rotate(45deg); flex: 0 0 auto; }
+  .scan-label::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+  /* KPI strip */
+  .kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 6px; }
+  .kpi-c { position: relative; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 14px 15px 13px; overflow: hidden; opacity: 0; transform: translateY(12px); animation: f7rise .5s cubic-bezier(.2,.7,.2,1) forwards; transition: transform .18s, border-color .18s, box-shadow .18s; }
+  .kpi-c:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 12px 34px -14px var(--glow); }
+  .kpi-c .kl { font-size: 9.5px; letter-spacing: 1.6px; color: var(--ink-dim); text-transform: uppercase; }
+  .kpi-c .kv { font-family: var(--disp); font-weight: 700; font-size: 27px; line-height: 1.05; margin-top: 7px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .kpi-c .kv.safe { color: var(--ok); text-shadow: 0 0 15px rgba(53,221,134,.3); }
+  .kpi-c .kv.warn { color: var(--warn); } .kpi-c .kv.crit { color: var(--bad); text-shadow: 0 0 15px rgba(255,93,108,.32); }
+  .kpi-c .kv small { font-size: 14px; color: var(--ink-dim); }
+  .kpi-c .ks { font-size: 10px; color: var(--ink-dim); margin-top: 5px; letter-spacing: .4px; }
+  .kpi-c .kc { position: absolute; width: 9px; height: 9px; border-color: var(--accent); opacity: .5; }
+  .kpi-c .kc.t { top: 6px; left: 6px; border-top: 1.5px solid; border-left: 1.5px solid; }
+  .kpi-c .kc.b { bottom: 6px; right: 6px; border-bottom: 1.5px solid; border-right: 1.5px solid; }
+  @media (max-width: 760px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+  /* HUD panels (analitik) */
+  .trend-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-bottom: 6px; }
+  @media (max-width: 760px) { .trend-grid { grid-template-columns: 1fr; } }
+  .hud-panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); position: relative; overflow: hidden; }
+  .hud-panel::before, .hud-panel::after { content: ""; position: absolute; width: 12px; height: 12px; border-color: var(--accent); opacity: .55; pointer-events: none; }
+  .hud-panel::before { top: 8px; left: 8px; border-top: 1.5px solid; border-left: 1.5px solid; }
+  .hud-panel::after { bottom: 8px; right: 8px; border-bottom: 1.5px solid; border-right: 1.5px solid; }
+  .hud-h { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(77,155,255,.05), transparent); }
+  .hud-t { font-family: var(--disp); font-weight: 600; letter-spacing: 1.5px; font-size: 12px; color: var(--ink); text-transform: uppercase; }
+  .hud-t i { color: var(--accent); font-style: normal; }
+  .hud-m { margin-left: auto; font-size: 9.5px; color: var(--ink-dim); letter-spacing: 1.2px; }
+  .hud-b { padding: 14px 16px; }
+  .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 10.5px; color: var(--ink-dim); letter-spacing: .4px; margin-bottom: 8px; }
+  .chart-legend b { color: var(--ink); font-weight: 600; }
+  .xaxis { display: flex; justify-content: space-between; margin: 5px 6px 0; font-size: 9px; color: var(--ink-dim); letter-spacing: .4px; }
+  .cstats { display: flex; gap: 20px; flex-wrap: wrap; margin: 11px 4px 0; padding-top: 11px; border-top: 1px dashed var(--border); }
+  .cstat .l { font-size: 9px; letter-spacing: 1.2px; color: var(--ink-dim); text-transform: uppercase; }
+  .cstat .v { font-size: 13px; color: var(--ink); font-family: var(--disp); font-weight: 600; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .cstat .v.down { color: var(--ok); } .cstat .v.up { color: var(--warn); }
+  .spk-row { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+  .spk-row:last-child { border-bottom: none; }
+  .spk-row .nm { font-size: 12px; color: var(--ink-soft); width: 92px; }
+  .spk-row .v { margin-left: auto; font-size: 11.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .f7-draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .f7-draw.go { animation: f7draw 1.2s .2s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes f7draw { to { stroke-dashoffset: 0; } }
+
   .grid { display: grid; grid-template-columns: 1fr; gap: 13px; }
   @media (min-width: 560px) { .grid { grid-template-columns: 1fr 1fr; } }
   @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
@@ -177,7 +255,7 @@
   .dot.up { background: var(--ok); box-shadow: 0 0 0 3px rgba(22,163,74,.16); }
   .dot.degraded { background: var(--warn); box-shadow: 0 0 0 3px rgba(217,119,6,.16); }
   .dot.down { background: var(--bad); box-shadow: 0 0 0 3px rgba(220,38,38,.16); }
-  .status.up { color: #15803d; } .status.degraded { color: #b45309; } .status.down { color: #b91c1c; }
+  .status.up { color: var(--ok); } .status.degraded { color: var(--warn); } .status.down { color: var(--bad); }
   .svc-meta { font-size: 11.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; text-align: right; }
   .svc-dot-lg { width: 10px; height: 10px; border-radius: 50%; margin-left: auto; flex: none; }
   /* ringkasan + tombol muat ulang */
@@ -190,9 +268,9 @@
   .role-badge.is-admin { color: var(--accent); background: rgba(61,74,122,.10); border-color: rgba(61,74,122,.28); }
   .role-badge.is-exec { color: var(--ink-dim); background: var(--surface-2); }
   .due-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; line-height: 1.5; }
-  .due-badge.ok { color: #15803d; background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.25); }
-  .due-badge.warn { color: #b45309; background: rgba(217,119,6,.10); border-color: rgba(217,119,6,.28); }
-  .due-badge.bad { color: #b91c1c; background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.28); }
+  .due-badge.ok { color: var(--ok); background: rgba(53,221,134,.10); border-color: rgba(53,221,134,.30); }
+  .due-badge.warn { color: var(--warn); background: rgba(255,157,60,.10); border-color: rgba(255,157,60,.32); }
+  .due-badge.bad { color: var(--bad); background: rgba(255,93,108,.10); border-color: rgba(255,93,108,.34); }
   .due-badge.info { color: var(--accent); background: rgba(61,74,122,.08); border-color: rgba(61,74,122,.22); }
   .cost-amount { font-size: 13px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   .cost-summary { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 2px 14px; font-size: 13px; color: var(--ink-soft); }
@@ -266,13 +344,18 @@
 
 <!-- ============ LAYAR 2: DASHBOARD ============ -->
 <section id="screen-app" class="screen">
+  <div class="f7-ambient"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
+  <div class="f7-vignette"></div>
+  <span class="f7-hc tl"></span><span class="f7-hc tr"></span><span class="f7-hc bl"></span><span class="f7-hc br"></span>
+  <div class="f7-scanline"></div>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand-mark">
         <span class="brand-dot">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"/><path d="M12 7v5l3 2"/></svg>
         </span>
-        <span class="brand-name serif">Kendali</span>
+        <span class="brand-name wm">KENDALI<b>//</b></span>
+        <span class="sysline"><span class="sd"></span>SYSTEM ONLINE</span>
       </div>
       <span class="role-badge" id="role-badge" style="display:none"></span>
       <span class="spacer"></span>
@@ -292,21 +375,26 @@
   </header>
 
   <main class="wrap">
-    <div class="page-head">
-      <div class="page-title serif" data-i18n="page_title">Ringkasan</div>
-      <div class="page-sub" id="page-sub" data-i18n="page_sub">Selamat datang. Semua layanan dalam satu layar.</div>
-      <div class="summary" id="status-summary"></div>
+    <div class="scan-label" data-i18n="ops_summary">Ringkasan Operasional</div>
+    <div class="kpi-strip" id="kpi-strip"></div>
+    <div class="summary" id="status-summary" style="display:none"></div>
+
+    <div class="scan-label" style="margin-top:26px" data-i18n="trend_label">Analitik &amp; Tren</div>
+    <div class="trend-grid">
+      <div class="hud-panel" id="cost-chart-panel">
+        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_cost">Biaya Anthropic · 30 Hari</span></span><span class="hud-m">USD / HARI</span></div>
+        <div class="hud-b" id="cost-chart-body"></div>
+      </div>
+      <div class="hud-panel">
+        <div class="hud-h"><span class="hud-t"><i>//</i> <span data-i18n="chart_lat">Latensi Layanan</span></span><span class="hud-m">MS</span></div>
+        <div class="hud-b" id="lat-spark-body"></div>
+      </div>
     </div>
 
-    <div class="banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/></svg>
-      <div data-i18n="banner">Pemantauan status & kesehatan aktif (diperiksa otomatis berkala). Pemantauan biaya & notifikasi menyusul di fase berikutnya.</div>
-    </div>
-
-    <div class="section-label" data-i18n="services_label">Layanan dipantau</div>
+    <div class="scan-label" data-i18n="services_label">Layanan dipantau</div>
     <div class="grid" id="svc-grid"><!-- diisi oleh JS --></div>
 
-    <div class="section-label" style="margin-top:28px" data-i18n="costs_label">Biaya &amp; Tanggal Penting</div>
+    <div class="scan-label" style="margin-top:26px" data-i18n="costs_label">Biaya &amp; Tanggal Penting</div>
     <div class="cost-summary" id="cost-summary"></div>
     <div class="bal-set" id="bal-set">
       <label data-i18n="bal_set">Atur saldo Anthropic</label>
@@ -316,7 +404,7 @@
     </div>
     <div class="grid" id="cost-grid"><!-- diisi oleh JS --></div>
 
-    <div class="section-label" style="margin-top:28px" data-i18n="app_label">Denyut Nadi Aplikasi (rempangops.com)</div>
+    <div class="scan-label" style="margin-top:26px" data-i18n="app_label">Denyut Nadi Aplikasi · rempangops.com</div>
     <div class="cost-summary" id="app-summary"></div>
     <div class="grid" id="app-grid"><!-- diisi oleh JS --></div>
 
@@ -367,7 +455,14 @@
       signing: "Memproses…", session_as: "Masuk sebagai",
       role_admin: "Admin", role_eksekutif: "Eksekutif",
       costs_label: "Biaya & Tanggal Penting",
-      app_label: "Denyut Nadi Aplikasi (rempangops.com)",
+      app_label: "Denyut Nadi Aplikasi · rempangops.com",
+      ops_summary: "Ringkasan Operasional",
+      trend_label: "Analitik & Tren", chart_cost: "Biaya Anthropic · 30 Hari", chart_lat: "Latensi Layanan",
+      ch_total: "total", ch_peak: "puncak", ch_trend: "Tren 7 Hari", ch_avg: "Rata-rata/Hari", ch_low: "Terendah", ch_nodata: "Data tren belum tersedia — jalankan pembaruan biaya.",
+      kpi_uptime: "Uptime", kpi_services: "Layanan Daring", kpi_cost: "Biaya / Bulan",
+      kpi_balance: "Sisa Saldo", kpi_perday: "Pakai / Hari",
+      kpi_healthy: "layanan sehat", kpi_allnodes: "semua node aktif", kpi_fixed: "tetap + Anthropic",
+      kpi_runout: "habis ~%d hari", kpi_unset: "belum diatur", kpi_avg30: "rata-rata 30 hari",
       ah_ok: "Normal", ah_warn: "Mendekati", ah_alarm: "ALARM", ah_nodata: "Menunggu data",
       ah_last: "aktivitas terakhir", ah_never: "belum ada data masuk",
       ah_hours: "jam lalu", ah_days: "hari lalu", ah_justnow: "baru saja",
@@ -407,7 +502,14 @@
       signing: "Working…", session_as: "Signed in as",
       role_admin: "Admin", role_eksekutif: "Executive",
       costs_label: "Costs & Key Dates",
-      app_label: "Application Pulse (rempangops.com)",
+      app_label: "Application Pulse · rempangops.com",
+      ops_summary: "Operational Summary",
+      trend_label: "Analytics & Trends", chart_cost: "Anthropic Cost · 30 Days", chart_lat: "Service Latency",
+      ch_total: "total", ch_peak: "peak", ch_trend: "7-Day Trend", ch_avg: "Avg/Day", ch_low: "Lowest", ch_nodata: "Trend data not ready — run cost update.",
+      kpi_uptime: "Uptime", kpi_services: "Services Online", kpi_cost: "Cost / Month",
+      kpi_balance: "Balance Left", kpi_perday: "Spend / Day",
+      kpi_healthy: "healthy services", kpi_allnodes: "all nodes active", kpi_fixed: "fixed + Anthropic",
+      kpi_runout: "runs out ~%dd", kpi_unset: "not set", kpi_avg30: "30-day average",
       ah_ok: "Normal", ah_warn: "Nearing", ah_alarm: "ALARM", ah_nodata: "Awaiting data",
       ah_last: "last activity", ah_never: "no data yet",
       ah_hours: "h ago", ah_days: "d ago", ah_justnow: "just now",
@@ -433,6 +535,8 @@
   var currentEmail = "";
   var currentRole = "eksekutif";
   var STATUS_MAP = {};
+  var LAT_HIST = {};
+  var f7First = true;
   var COST_ITEMS = [];
   var ANTHROPIC = null;
   var APP_HEALTH = [];
@@ -456,9 +560,12 @@
     $all("#lang-toggle button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
     renderServices();
     updateSummary();
+    renderKPI();
+    renderCharts();
     renderCosts();
     renderAppHealth();
     renderRole();
+    f7First = false;
   }
 
   function roleLabel() {
@@ -557,7 +664,123 @@
     box.innerHTML = html;
   }
 
-  // ---------- Biaya & tanggal penting ----------
+  // ---------- Strip KPI (Fase 7) ----------
+  function f7CountUp(el) {
+    var to = parseFloat(el.getAttribute("data-to")), dec = parseInt(el.getAttribute("data-dec") || "0");
+    if (isNaN(to)) { return; }
+    var dur = 900, t0 = null;
+    function step(ts) {
+      if (!t0) t0 = ts; var p = Math.min((ts - t0) / dur, 1); var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = (to * e).toFixed(dec); if (p < 1) requestAnimationFrame(step); else el.textContent = to.toFixed(dec);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function renderKPI() {
+    var box = $("#kpi-strip"); if (!box) return;
+    // hitung dari data nyata
+    var up = 0, total = 0;
+    SERVICES.forEach(function (s) { total++; var r = STATUS_MAP[s.key]; if (r && r.status === "up") up++; });
+    var uptimePct = total ? Math.round((up / total) * 100) : 0;
+    var uptimeCls = uptimePct >= 100 ? "safe" : uptimePct >= 75 ? "warn" : "crit";
+    // biaya bulanan: recurring USD + proyeksi Anthropic
+    var monthlyUSD = 0;
+    COST_ITEMS.forEach(function (it) { if (it.kind === "recurring_monthly" && it.currency === "USD" && it.amount != null) monthlyUSD += Number(it.amount); });
+    if (ANTHROPIC && ANTHROPIC.monthly_proj_usd != null) monthlyUSD += Number(ANTHROPIC.monthly_proj_usd);
+    // saldo
+    var rem = (ANTHROPIC && ANTHROPIC.remaining_usd != null) ? Number(ANTHROPIC.remaining_usd) : null;
+    var runout = (ANTHROPIC && ANTHROPIC.runout_days != null) ? Number(ANTHROPIC.runout_days) : null;
+    var balCls = rem == null ? "" : (runout != null && runout <= 7) ? "crit" : (runout != null && runout <= 14) ? "warn" : "safe";
+    var balSub = rem == null ? t("kpi_unset") : (runout != null ? t("kpi_runout").replace("%d", Math.max(0, Math.round(runout))) : "");
+    var perday = (ANTHROPIC && ANTHROPIC.daily_avg_usd != null) ? Number(ANTHROPIC.daily_avg_usd) : null;
+
+    function card(lab, valHtml, cls, sub, d) {
+      return '<div class="kpi-c" style="animation-delay:' + d + 's"><span class="kc t"></span><span class="kc b"></span>' +
+        '<div class="kl">' + lab + '</div>' +
+        '<div class="kv ' + (cls || "") + '">' + valHtml + '</div>' +
+        '<div class="ks">' + (sub || "") + '</div></div>';
+    }
+    var html = "";
+    html += card(t("kpi_uptime"), '<span class="cu" data-to="' + uptimePct + '">0</span><small>%</small>', uptimeCls, up + " " + t("kpi_healthy"), .05);
+    html += card(t("kpi_services"), '<span class="cu" data-to="' + up + '">0</span>/' + total, "", t("kpi_allnodes"), .11);
+    html += card(t("kpi_cost"), '~$<span class="cu" data-to="' + Math.round(monthlyUSD) + '">0</span>', "", t("kpi_fixed"), .17);
+    html += card(t("kpi_balance"), rem == null ? "—" : '$<span class="cu" data-to="' + rem.toFixed(2) + '" data-dec="2">0</span>', balCls, balSub, .23);
+    html += card(t("kpi_perday"), perday == null ? "—" : '$<span class="cu" data-to="' + perday.toFixed(2) + '" data-dec="2">0</span>', "", t("kpi_avg30"), .29);
+    box.innerHTML = html;
+    // jalankan count-up (hanya saat render pertama supaya tidak berkedip tiap refresh)
+    if (f7First) { $all(".kpi-strip .cu").forEach(function (el, i) { setTimeout(function () { f7CountUp(el); }, 260 + i * 80); }); }
+    else { $all(".kpi-strip .cu").forEach(function (el) { var to = el.getAttribute("data-to"), d = parseInt(el.getAttribute("data-dec") || "0"); if (to != null) el.textContent = parseFloat(to).toFixed(d); }); }
+  }
+
+  // ---------- Grafik tren (Fase 7) ----------
+  function svgPath(vals, W, H, pad) {
+    var n = vals.length; if (n < 2) return { line: "", area: "" };
+    var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals); if (max === min) max = min + 1;
+    var xs = function (i) { return pad + i * (W - 2 * pad) / (n - 1); };
+    var ys = function (v) { return H - pad - ((v - 0) / (max - 0)) * (H - 2 * pad); };
+    var line = "", area = "M" + pad + "," + (H - pad);
+    vals.forEach(function (v, i) { var x = xs(i), y = ys(v); line += (i ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1); area += "L" + x.toFixed(1) + "," + y.toFixed(1); });
+    area += "L" + (W - pad) + "," + (H - pad) + "Z";
+    return { line: line, area: area, xs: xs, ys: ys, max: max };
+  }
+
+  function renderCharts() {
+    // --- chart biaya 30 hari ---
+    var body = $("#cost-chart-body");
+    if (body) {
+      var ds = (ANTHROPIC && ANTHROPIC.daily_series) ? ANTHROPIC.daily_series : null;
+      if (typeof ds === "string") { try { ds = JSON.parse(ds); } catch (e) { ds = null; } }
+      if (!ds || !ds.length) {
+        body.innerHTML = '<div style="color:var(--ink-dim);font-size:12px;padding:24px 4px;text-align:center">' + t("ch_nodata") + '</div>';
+      } else {
+        var vals = ds.map(function (x) { return Number(x.v) || 0; });
+        var W = 620, H = 170, pad = 12, p = svgPath(vals, W, H, pad);
+        var total = vals.reduce(function (a, b) { return a + b; }, 0);
+        var peak = Math.max.apply(null, vals), low = Math.min.apply(null, vals);
+        var peakIdx = vals.indexOf(peak);
+        var last7 = vals.slice(-7).reduce(function (a, b) { return a + b; }, 0) / 7;
+        var prev7 = vals.slice(-14, -7).reduce(function (a, b) { return a + b; }, 0) / 7;
+        var trendPct = prev7 > 0 ? Math.round((last7 - prev7) / prev7 * 100) : 0;
+        var trendCls = trendPct <= 0 ? "down" : "up";
+        var trendArrow = trendPct <= 0 ? "↓" : "↑";
+        var gl = ""; for (var g = 1; g < 4; g++) { var gy = pad + g * (H - 2 * pad) / 4; gl += '<line x1="' + pad + '" y1="' + gy + '" x2="' + (W - pad) + '" y2="' + gy + '" stroke="var(--border)" stroke-width="1"/>'; }
+        var peakDot = peak > 0 ? '<circle cx="' + p.xs(peakIdx).toFixed(1) + '" cy="' + p.ys(peak).toFixed(1) + '" r="3.4" fill="#fff" stroke="var(--accent)" stroke-width="2"/>' : '';
+        var first = ds[0].d.replace("-", "/"), midi = ds[Math.floor(ds.length / 2)].d.replace("-", "/"), lastd = ds[ds.length - 1].d.replace("-", "/");
+        body.innerHTML =
+          '<div class="chart-legend"><span><b style="color:var(--accent)">—</b> pemakaian harian</span><span>' + t("ch_total") + ': <b>$' + total.toFixed(2) + '</b></span><span>' + t("ch_peak") + ': <b>$' + peak.toFixed(2) + '</b></span></div>' +
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none">' +
+            '<defs><linearGradient id="f7cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(77,155,255,.40)"/><stop offset="1" stop-color="rgba(77,155,255,0)"/></linearGradient></defs>' +
+            gl +
+            '<path d="' + p.area + '" fill="url(#f7cg)" opacity="' + (f7First ? "0" : ".9") + '"' + (f7First ? ' style="animation:f7rise .8s .5s forwards"' : '') + '/>' +
+            '<path d="' + p.line + '" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" pathLength="1" class="f7-draw' + (f7First ? "" : " done") + '"' + (f7First ? '' : ' style="stroke-dashoffset:0"') + '/>' +
+            peakDot +
+          '</svg>' +
+          '<div class="xaxis"><span>' + first + '</span><span>' + midi + '</span><span>' + lastd + '</span></div>' +
+          '<div class="cstats">' +
+            '<div class="cstat"><div class="l">' + t("ch_trend") + '</div><div class="v ' + trendCls + '">' + trendArrow + ' ' + Math.abs(trendPct) + '%</div></div>' +
+            '<div class="cstat"><div class="l">' + t("ch_avg") + '</div><div class="v">$' + (total / vals.length).toFixed(2) + '</div></div>' +
+            '<div class="cstat"><div class="l">' + t("ch_peak") + '</div><div class="v">$' + peak.toFixed(2) + '</div></div>' +
+            '<div class="cstat"><div class="l">' + t("ch_low") + '</div><div class="v">$' + low.toFixed(2) + '</div></div>' +
+          '</div>';
+        if (f7First) { var ln = body.querySelector(".f7-draw"); if (ln) { void ln.getBoundingClientRect(); ln.classList.add("go"); } }
+      }
+    }
+    // --- sparkline latensi ---
+    var lb = $("#lat-spark-body");
+    if (lb) {
+      var html = "";
+      SERVICES.forEach(function (sv) {
+        var arr = (LAT_HIST[sv.key] || []).slice().reverse(); // jadikan kronologis
+        var cur = STATUS_MAP[sv.key] && STATUS_MAP[sv.key].latency_ms != null ? STATUS_MAP[sv.key].latency_ms : null;
+        if (arr.length < 2) { html += '<div class="spk-row"><span class="nm">' + sv.name.split(" ")[0] + '</span><span class="v">' + (cur != null ? cur : "—") + '</span></div>'; return; }
+        var W = 150, H = 26, p = svgPath(arr, W, H, 2);
+        html += '<div class="spk-row"><span class="nm">' + sv.name.split(" ")[0] + '</span>' +
+          '<svg width="150" height="26" viewBox="0 0 150 26"><path d="' + p.line + '" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".85"/></svg>' +
+          '<span class="v">' + (cur != null ? cur : "—") + '</span></div>';
+      });
+      lb.innerHTML = html;
+    }
+  }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
 
   function nextDate(item, now) {
@@ -629,7 +852,7 @@
   async function fetchAnthropic() {
     try {
       var q = await supabase.from("anthropic_cost")
-        .select("month_start,total_usd,last30_usd,daily_avg_usd,monthly_proj_usd,fetched_at")
+        .select("month_start,total_usd,last30_usd,daily_avg_usd,monthly_proj_usd,remaining_usd,runout_days,daily_series,fetched_at")
         .eq("id", 1).single();
       if (!q.error && q.data) ANTHROPIC = q.data;
     } catch (e) { console.error("fetchAnthropic:", e); }
@@ -831,6 +1054,7 @@
 
   async function fetchStatuses() {
     STATUS_MAP = {};
+    LAT_HIST = {};
     try {
       var q = await supabase.from("status_history")
         .select("service_key,status,latency_ms,http_code,detail,checked_at")
@@ -839,6 +1063,10 @@
       if (q.error) { console.error("fetchStatuses:", q.error); return; }
       (q.data || []).forEach(function (row) {
         if (!STATUS_MAP[row.service_key]) STATUS_MAP[row.service_key] = row; // pertama = terbaru
+        if (row.latency_ms != null) {
+          if (!LAT_HIST[row.service_key]) LAT_HIST[row.service_key] = [];
+          if (LAT_HIST[row.service_key].length < 24) LAT_HIST[row.service_key].push(Number(row.latency_ms)); // desc → akan dibalik saat render
+        }
       });
     } catch (e) { console.error("fetchStatuses ex:", e); }
   }
