@@ -306,6 +306,56 @@
   .foot-note { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 34px; line-height: 1.7; }
 
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== Fase 8 — interaktif, responsif, urgensi bertingkat, wow ===== */
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .chart-canvas-wrap { position: relative; height: clamp(200px, 30vw, 250px); margin: 2px 0 4px; }
+  .spk-svg { flex: 1; height: 26px; min-width: 40px; }
+
+  /* sinyal urgensi — efek psikologis bertingkat */
+  @keyframes sigWarn { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+  @keyframes sigWarnGlow { 0%,100% { box-shadow: 0 0 5px 1px var(--warn); } 50% { box-shadow: 0 0 11px 3px var(--warn); } }
+  @keyframes sigCrit { 0%,49% { opacity: 1; } 50%,100% { opacity: .18; } }
+  @keyframes sigCritGlow { 0%,100% { box-shadow: 0 0 6px 1px var(--bad); } 50% { box-shadow: 0 0 18px 5px var(--bad); } }
+  @keyframes critAura { 0%,100% { box-shadow: 0 0 0 1px rgba(255,93,108,.4), 0 0 14px -2px rgba(255,93,108,.35); } 50% { box-shadow: 0 0 0 1px rgba(255,93,108,.8), 0 0 26px 2px rgba(255,93,108,.6); } }
+
+  /* MODERATE (oranye): denyut halus + glow lembut — "perlu perhatian, belum gawat" */
+  .dot.degraded, .state-dot.warn { animation: sigWarn 1.8s ease-in-out infinite, sigWarnGlow 1.8s ease-in-out infinite; }
+  /* DANGER (merah): kedip cepat & kuat + glow keras — "gawat, tangani segera" */
+  .dot.down, .state-dot.alarm { animation: sigCrit .7s steps(1,end) infinite, sigCritGlow .7s ease-in-out infinite; }
+  /* kartu alarm: aura merah berdenyut (bold) */
+  .svc.alarm { animation: critAura 1.1s ease-in-out infinite; border-color: rgba(255,93,108,.5) !important; }
+  /* KPI saldo kritis: denyut halus angka */
+  .kpi-c .kv.crit { animation: sigWarn 1.6s ease-in-out infinite; }
+
+  /* TOPBAR responsif — cegah meluber di HP */
+  @media (max-width: 600px) {
+    .topbar-inner { flex-wrap: wrap; gap: 8px 7px; }
+    .topbar .right, .topbar > div:last-child { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .icon-btn { padding: 7px 9px !important; font-size: 10px !important; }
+    .role-badge { font-size: 10px; }
+    .sysline { font-size: 9.5px; }
+  }
+
+  /* PROPORSI adaptif lintas-HP (clamp = skala mulus tanpa pecah breakpoint) */
+  .kpi-c .kv { font-size: clamp(20px, 6.4vw, 27px); }
+  .kpi-c .kl { font-size: clamp(8.5px, 2.5vw, 9.5px); }
+  .brand-name.wm { font-size: clamp(15px, 4.4vw, 18px); }
+  @media (max-width: 600px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+    .kpi-c { padding: 12px 12px 11px; }
+    .wrap, .topbar-inner { padding-left: 14px; padding-right: 14px; }
+    .hud-b { padding: 12px 12px; }
+    .scan-label { font-size: 9px; letter-spacing: 1.6px; }
+    .cstats { gap: 13px; }
+  }
+
+  /* WOW: ambient lebih hidup + sheen halus pada KPI */
+  .kpi-c::after { content: ""; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(143,194,255,.07), transparent); transform: skewX(-18deg);
+    animation: kpiSheen 6s ease-in-out infinite; pointer-events: none; }
+  @keyframes kpiSheen { 0%,82% { left: -60%; } 92%,100% { left: 130%; } }
+
 </style>
 </head>
 <body>
@@ -427,6 +477,7 @@
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 (function () {
   "use strict";
@@ -470,7 +521,7 @@
       app_label: "Denyut Nadi Aplikasi · rempangops.com",
       ops_summary: "Ringkasan Operasional",
       trend_label: "Analitik & Tren", chart_cost: "Biaya Anthropic · 30 Hari", chart_lat: "Latensi Layanan", unit_usd_day: "USD / HARI", unit_ms: "MS",
-      ch_total: "total", ch_peak: "puncak", ch_trend: "Tren 7 Hari", ch_avg: "Rata-rata/Hari", ch_low: "Terendah", ch_daily: "pemakaian harian", ch_nodata: "Data tren belum tersedia — jalankan pembaruan biaya.",
+      ch_total: "total", ch_peak: "puncak", ch_trend: "Tren 7 Hari", ch_avg: "Rata-rata/Hari", ch_low: "Terendah", ch_daily: "pemakaian harian", ch_anom: "lonjakan", ch_nodata: "Data tren belum tersedia — jalankan pembaruan biaya.",
       kpi_uptime: "Uptime", kpi_services: "Layanan Daring", kpi_cost: "Biaya / Bulan",
       kpi_balance: "Sisa Saldo", kpi_perday: "Pakai / Hari",
       kpi_healthy: "layanan sehat", kpi_allnodes: "semua node aktif", kpi_attention: "perlu perhatian", kpi_fixed: "tetap + Anthropic", kpi_fixed_word: "tetap",
@@ -518,7 +569,7 @@
       app_label: "Application Pulse · rempangops.com",
       ops_summary: "Operational Summary",
       trend_label: "Analytics & Trends", chart_cost: "Anthropic Cost · 30 Days", chart_lat: "Service Latency", unit_usd_day: "USD / DAY", unit_ms: "MS",
-      ch_total: "total", ch_peak: "peak", ch_trend: "7-Day Trend", ch_avg: "Avg/Day", ch_low: "Lowest", ch_daily: "daily usage", ch_nodata: "Trend data not ready — run cost update.",
+      ch_total: "total", ch_peak: "peak", ch_trend: "7-Day Trend", ch_avg: "Avg/Day", ch_low: "Lowest", ch_daily: "daily usage", ch_anom: "spike", ch_nodata: "Trend data not ready — run cost update.",
       kpi_uptime: "Uptime", kpi_services: "Services Online", kpi_cost: "Cost / Month",
       kpi_balance: "Balance Left", kpi_perday: "Spend / Day",
       kpi_healthy: "healthy services", kpi_allnodes: "all nodes active", kpi_attention: "need attention", kpi_fixed: "fixed + Anthropic", kpi_fixed_word: "fixed",
@@ -777,61 +828,102 @@
     return { line: line, area: area, xs: xs, ys: ys, max: max };
   }
 
+  var costChartInst = null;
   function renderCharts() {
-    // --- chart biaya 30 hari ---
+    // --- chart biaya 30 hari (Chart.js: interaktif, tooltip saat hover, responsif) ---
     var body = $("#cost-chart-body");
     if (body) {
       var ds = (ANTHROPIC && ANTHROPIC.daily_series) ? ANTHROPIC.daily_series : null;
       if (typeof ds === "string") { try { ds = JSON.parse(ds); } catch (e) { ds = null; } }
       if (!ds || !ds.length) {
-        body.innerHTML = '<div style="color:var(--ink-dim);font-size:12px;padding:24px 4px;text-align:center">' + t("ch_nodata") + '</div>';
+        if (costChartInst) { try { costChartInst.destroy(); } catch (e) {} costChartInst = null; }
+        body.innerHTML = '<div style="color:var(--ink-dim);font-size:12px;padding:30px 4px;text-align:center">' + t("ch_nodata") + '</div>';
       } else {
         var vals = ds.map(function (x) { return Number(x.v) || 0; });
-        var W = 620, H = 170, pad = 12, p = svgPath(vals, W, H, pad);
-        var sumSeries = vals.reduce(function (a, b) { return a + b; }, 0);
-        // total memakai angka 30-hari otoritatif (sama dgn kartu Anthropic) bila ada; hindari beda pembulatan
-        var total = (ANTHROPIC && ANTHROPIC.last30_usd != null) ? Number(ANTHROPIC.last30_usd) : sumSeries;
+        var labels = ds.map(function (x) { return x.d.replace("-", "/"); });
+        var total = (ANTHROPIC && ANTHROPIC.last30_usd != null) ? Number(ANTHROPIC.last30_usd) : vals.reduce(function (a, b) { return a + b; }, 0);
         var peak = Math.max.apply(null, vals), low = Math.min.apply(null, vals);
-        var peakIdx = vals.indexOf(peak);
         var last7 = vals.slice(-7).reduce(function (a, b) { return a + b; }, 0) / 7;
         var prev7 = vals.slice(-14, -7).reduce(function (a, b) { return a + b; }, 0) / 7;
         var trendPct = prev7 > 0 ? Math.round((last7 - prev7) / prev7 * 100) : 0;
         var trendCls = trendPct <= 0 ? "down" : "up";
-        var trendArrow = trendPct <= 0 ? "↓" : "↑";
-        var gl = ""; for (var g = 1; g < 4; g++) { var gy = pad + g * (H - 2 * pad) / 4; gl += '<line x1="' + pad + '" y1="' + gy + '" x2="' + (W - pad) + '" y2="' + gy + '" stroke="var(--border)" stroke-width="1"/>'; }
-        var peakDot = peak > 0 ? '<circle cx="' + p.xs(peakIdx).toFixed(1) + '" cy="' + p.ys(peak).toFixed(1) + '" r="3.4" fill="#fff" stroke="var(--accent)" stroke-width="2"/>' : '';
-        var first = ds[0].d.replace("-", "/"), midi = ds[Math.floor(ds.length / 2)].d.replace("-", "/"), lastd = ds[ds.length - 1].d.replace("-", "/");
+        var trendArrow = trendPct <= 0 ? "\u2193" : "\u2191";
+        var _m0 = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+        var _sd0 = Math.sqrt(vals.reduce(function (a, b) { return a + Math.pow(b - _m0, 2); }, 0) / vals.length);
+        var _hasAnom = vals.some(function (v) { return v > _m0 + 2 * _sd0; });
         body.innerHTML =
-          '<div class="chart-legend"><span><b style="color:var(--accent)">—</b> ' + t("ch_daily") + '</span><span>' + t("ch_total") + ': <b>$' + total.toFixed(2) + '</b></span><span>' + t("ch_peak") + ': <b>$' + peak.toFixed(2) + '</b></span></div>' +
-          '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none">' +
-            '<defs><linearGradient id="f7cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(77,155,255,.40)"/><stop offset="1" stop-color="rgba(77,155,255,0)"/></linearGradient></defs>' +
-            gl +
-            '<path d="' + p.area + '" fill="url(#f7cg)" opacity="' + (f7First ? "0" : ".9") + '"' + (f7First ? ' style="animation:f7rise .8s .5s forwards"' : '') + '/>' +
-            '<path d="' + p.line + '" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" pathLength="1" class="f7-draw' + (f7First ? "" : " done") + '"' + (f7First ? '' : ' style="stroke-dashoffset:0"') + '/>' +
-            peakDot +
-          '</svg>' +
-          '<div class="xaxis"><span>' + first + '</span><span>' + midi + '</span><span>' + lastd + '</span></div>' +
+          '<div class="chart-legend"><span><b style="color:var(--accent)">\u2014</b> ' + t("ch_daily") + '</span>' + (_hasAnom ? '<span><b style="color:var(--bad)">\u25CF</b> ' + t("ch_anom") + '</span>' : '') + '<span>' + t("ch_total") + ': <b>$' + total.toFixed(2) + '</b></span><span>' + t("ch_peak") + ': <b>$' + peak.toFixed(2) + '</b></span></div>' +
+          '<div class="chart-canvas-wrap"><canvas id="costCanvas"></canvas></div>' +
           '<div class="cstats">' +
             '<div class="cstat"><div class="l">' + t("ch_trend") + '</div><div class="v ' + trendCls + '">' + trendArrow + ' ' + Math.abs(trendPct) + '%</div></div>' +
             '<div class="cstat"><div class="l">' + t("ch_avg") + '</div><div class="v">$' + (total / vals.length).toFixed(2) + '</div></div>' +
             '<div class="cstat"><div class="l">' + t("ch_peak") + '</div><div class="v">$' + peak.toFixed(2) + '</div></div>' +
             '<div class="cstat"><div class="l">' + t("ch_low") + '</div><div class="v">$' + low.toFixed(2) + '</div></div>' +
           '</div>';
-        if (f7First) { var ln = body.querySelector(".f7-draw"); if (ln) { void ln.getBoundingClientRect(); ln.classList.add("go"); } }
+        if (typeof Chart !== "undefined") {
+          var cv = document.getElementById("costCanvas");
+          if (cv) {
+            var cx = cv.getContext("2d");
+            var grad = cx.createLinearGradient(0, 0, 0, 230);
+            grad.addColorStop(0, "rgba(77,155,255,.45)"); grad.addColorStop(1, "rgba(77,155,255,0)");
+            var peakIdx = vals.indexOf(peak);
+            // deteksi lonjakan: nilai di atas rata-rata + 2 simpang baku ditandai merah
+            var mean = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+            var sd = Math.sqrt(vals.reduce(function (a, b) { return a + Math.pow(b - mean, 2); }, 0) / vals.length);
+            var upper = mean + 2 * sd;
+            var ptColor = vals.map(function (v) { return v > upper ? "#ff5d6c" : "#fff"; });
+            var ptRad = vals.map(function (v, i) { return v > upper ? 5 : (i === peakIdx ? 4 : 0); });
+            var meanArr = vals.map(function () { return Math.round(mean * 100) / 100; });
+            if (costChartInst) { try { costChartInst.destroy(); } catch (e) {} }
+            costChartInst = new Chart(cx, {
+              type: "line",
+              data: { labels: labels, datasets: [
+                { label: "rata", data: meanArr, borderColor: "rgba(143,194,255,.38)", borderWidth: 1.2, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0 },
+                { label: "USD", data: vals, borderColor: "#4d9bff", backgroundColor: grad,
+                  borderWidth: 2.4, tension: .32, fill: true,
+                  pointRadius: ptRad, pointBackgroundColor: ptColor, pointBorderColor: "#4d9bff", pointBorderWidth: 2,
+                  pointHoverRadius: 6, pointHoverBackgroundColor: ptColor, pointHoverBorderColor: "#4d9bff" }
+              ] },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: f7First ? 1100 : 0 },
+                interaction: { intersect: false, mode: "index" },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: "rgba(10,18,32,.96)", borderColor: "#4d9bff", borderWidth: 1,
+                    titleColor: "#8fc2ff", bodyColor: "#e9f1fb",
+                    titleFont: { family: "JetBrains Mono", size: 11 },
+                    bodyFont: { family: "JetBrains Mono", size: 13, weight: "700" },
+                    padding: 10, displayColors: false, caretSize: 5,
+                    filter: function (item) { return item.dataset.label === "USD"; },
+                    callbacks: { label: function (c) { return "$" + Number(c.parsed.y).toFixed(2); } }
+                  }
+                },
+                scales: {
+                  x: { grid: { color: "rgba(77,155,255,.08)" }, ticks: { color: "#7b8ca3", font: { family: "JetBrains Mono", size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 } },
+                  y: { grid: { color: "rgba(77,155,255,.08)" }, ticks: { color: "#7b8ca3", font: { family: "JetBrains Mono", size: 9 }, callback: function (v) { return "$" + v; } }, beginAtZero: true }
+                }
+              }
+            });
+          }
+        }
       }
     }
-    // --- sparkline latensi ---
+    // --- sparkline latensi (responsif + tooltip nilai saat hover) ---
     var lb = $("#lat-spark-body");
     if (lb) {
       var html = "";
       SERVICES.forEach(function (sv) {
-        var arr = (LAT_HIST[sv.key] || []).slice().reverse(); // jadikan kronologis
+        var arr = (LAT_HIST[sv.key] || []).slice().reverse();
         var cur = STATUS_MAP[sv.key] && STATUS_MAP[sv.key].latency_ms != null ? STATUS_MAP[sv.key].latency_ms : null;
-        if (arr.length < 2) { html += '<div class="spk-row"><span class="nm">' + sv.name.split(" ")[0] + '</span><span class="v">' + (cur != null ? cur : "—") + '</span></div>'; return; }
-        var W = 150, H = 26, p = svgPath(arr, W, H, 2);
-        html += '<div class="spk-row"><span class="nm">' + sv.name.split(" ")[0] + '</span>' +
-          '<svg width="150" height="26" viewBox="0 0 150 26"><path d="' + p.line + '" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".85"/></svg>' +
-          '<span class="v">' + (cur != null ? cur : "—") + '</span></div>';
+        var nm = sv.name.split(" ")[0];
+        if (arr.length < 2) { html += '<div class="spk-row"><span class="nm">' + nm + '</span><span class="spk-svg"></span><span class="v">' + (cur != null ? cur : "\u2014") + '</span></div>'; return; }
+        var pth = svgPath(arr, 150, 26, 2);
+        var ttl = nm + ": " + (cur != null ? cur + " ms" : "\u2014");
+        html += '<div class="spk-row"><span class="nm">' + nm + '</span>' +
+          '<svg class="spk-svg" viewBox="0 0 150 26" preserveAspectRatio="none"><title>' + ttl + '</title><path d="' + pth.line + '" fill="none" stroke="var(--accent)" stroke-width="1.6" opacity=".9" vector-effect="non-scaling-stroke"/></svg>' +
+          '<span class="v">' + (cur != null ? cur : "\u2014") + '</span></div>';
       });
       lb.innerHTML = html;
     }
