@@ -94,7 +94,7 @@ module.exports = async function (req, res) {
 
   // --- Tarik cost_report ---
   var total30 = null, mtd = null, dailyAvg = null, monthlyProj = null, buckets = 0, sample = null;
-  var remaining = null, runoutDays = null, costSince = null;
+  var remaining = null, runoutDays = null, costSince = null, dailySeries = null;
   try {
     var url = "https://api.anthropic.com/v1/organizations/cost_report"
       + "?starting_at=" + encodeURIComponent(startIso)
@@ -125,6 +125,16 @@ module.exports = async function (req, res) {
       remaining = round2(balanceAmount - costSince);
       if (dailyAvg > 0) runoutDays = Math.max(0, Math.round((remaining / dailyAvg) * 10) / 10);
     }
+    // deret harian 30 hari (untuk chart): {d:'MM-DD', v:usd}
+    var byDay = {};
+    (body.data || []).forEach(function (b) {
+      var ms = b && b.starting_at ? Date.parse(b.starting_at) : NaN;
+      if (isNaN(ms) || ms < start30.getTime()) return;
+      var usd = 0; (b.results || []).forEach(function (it) { var a = it && it.amount != null ? it.amount : (it && it.cost != null ? it.cost : null); if (a != null) { var n = Number(a); if (!isNaN(n)) usd += n; } });
+      byDay[new Date(ms).toISOString().slice(5, 10)] = round2(usd);
+    });
+    dailySeries = [];
+    for (var di = 30; di >= 1; di--) { var dd = new Date(startOfToday.getTime() - di * 86400000).toISOString().slice(5, 10); dailySeries.push({ d: dd, v: byDay[dd] != null ? byDay[dd] : 0 }); }
   } catch (e) {
     var msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message ? e.message : String(e));
     res.status(200).json({ ok: false, stage: "anthropic", error: msg });
@@ -142,7 +152,7 @@ module.exports = async function (req, res) {
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal"
       },
-      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, last30_usd: total30, daily_avg_usd: dailyAvg, monthly_proj_usd: monthlyProj, remaining_usd: remaining, runout_days: runoutDays, cost_since_balance: costSince, fetched_at: new Date().toISOString() }])
+      body: JSON.stringify([{ id: 1, month_start: monthStart.toISOString().slice(0, 10), total_usd: mtd, last30_usd: total30, daily_avg_usd: dailyAvg, monthly_proj_usd: monthlyProj, remaining_usd: remaining, runout_days: runoutDays, cost_since_balance: costSince, daily_series: dailySeries, fetched_at: new Date().toISOString() }])
     }, DB_TIMEOUT_MS);
     saved = ins.ok;
     if (!ins.ok) saveErr = "insert http " + ins.status + ": " + (await ins.text());
@@ -162,6 +172,7 @@ module.exports = async function (req, res) {
     cost_since_balance: costSince,
     remaining_usd: remaining,
     runout_days: runoutDays,
+    daily_series: dailySeries,
     balance_stale: balanceStale,
     buckets: buckets,
     saved: saved,
