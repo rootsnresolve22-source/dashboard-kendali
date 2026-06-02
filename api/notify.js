@@ -11,6 +11,7 @@
 var TIMEOUT_MS = 4000;
 var DB_TIMEOUT_MS = 1000;
 var DUE_THRESHOLD_DAYS = 7;   // kirim pengingat tanggal bila tersisa <= 7 hari (sekali/hari)
+var RUNOUT_THRESHOLD_DAYS = 7; // alarm saldo Anthropic bila diperkirakan habis <= 7 hari (sekali/hari)
 
 var SVC_NAMES = {
   vercel: "Vercel (hosting)", supabase: "Supabase (database)", anthropic: "Anthropic (Claude)",
@@ -180,6 +181,26 @@ module.exports = async function (req, res) {
         baselineUpdates.push({ alert_key: akey, last_state: cur, last_notified_at: nowIso });
       }
     });
+
+    // 4c) evaluasi saldo Anthropic — alarm bila diperkirakan habis dalam <= ambang hari
+    var ac = await sbGet(SUPA_URL, SECRET, "anthropic_cost?id=eq.1&select=remaining_usd,runout_days");
+    if (Array.isArray(ac) && ac.length && ac[0].runout_days != null) {
+      var runout = Number(ac[0].runout_days);
+      var rem = ac[0].remaining_usd != null ? Number(ac[0].remaining_usd) : null;
+      if (runout <= RUNOUT_THRESHOLD_DAYS) {
+        var bkey = "anthropic:balance";
+        var bst = stateMap[bkey];
+        var bSentToday = bst && bst.last_notified_at && String(bst.last_notified_at).slice(0, 10) === nowIso.slice(0, 10);
+        if (!bSentToday) {
+          if (runout <= 0) {
+            messages.push("💳 Saldo Anthropic kemungkinan SUDAH HABIS" + (rem != null ? " (~$" + rem.toFixed(2) + ")" : "") + ". AI di rempangops bisa berhenti — segera isi ulang.");
+          } else {
+            messages.push("💳 Saldo Anthropic menipis" + (rem != null ? " (~$" + rem.toFixed(2) + ")" : "") + ": diperkirakan habis ~" + Math.round(runout) + " hari lagi. Segera isi ulang agar AI rempangops tetap jalan.");
+          }
+          alertUpdates.push({ alert_key: bkey, last_state: "low", last_notified_at: nowIso });
+        }
+      }
+    }
   } catch (e) {
     res.status(200).json({ ok: false, stage: "evaluate", error: (e && e.message) || String(e) });
     return;
