@@ -275,8 +275,12 @@
   .role-badge.is-exec { color: var(--ink-dim); background: var(--surface-2); }
   .due-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; line-height: 1.5; }
   .due-badge.ok { color: var(--ok); background: rgba(53,221,134,.10); border-color: rgba(53,221,134,.30); }
-  .due-badge.warn { color: var(--warn); background: rgba(255,157,60,.10); border-color: rgba(255,157,60,.32); }
-  .due-badge.bad { color: var(--bad); background: rgba(255,93,108,.10); border-color: rgba(255,93,108,.34); }
+  .due-badge.warn { color: var(--warn); background: rgba(255,157,60,.10); border-color: rgba(255,157,60,.32);
+    animation: badgeWarn 1.8s ease-in-out infinite; }
+  .due-badge.bad { color: var(--bad); background: rgba(255,93,108,.12); border-color: rgba(255,93,108,.5);
+    animation: badgeCrit .8s ease-in-out infinite; }
+  @keyframes badgeWarn { 0%,100% { box-shadow: 0 0 0 0 rgba(255,157,60,0); border-color: rgba(255,157,60,.32); } 50% { box-shadow: 0 0 10px 1px rgba(255,157,60,.45); border-color: rgba(255,157,60,.7); } }
+  @keyframes badgeCrit { 0%,100% { box-shadow: 0 0 0 0 rgba(255,93,108,.15); border-color: rgba(255,93,108,.5); opacity: 1; } 50% { box-shadow: 0 0 14px 2px rgba(255,93,108,.75); border-color: rgba(255,93,108,1); opacity: .82; } }
   .due-badge.info { color: var(--accent); background: rgba(61,74,122,.08); border-color: rgba(61,74,122,.22); }
   .cost-amount { font-size: 13px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   .cost-summary { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 2px 14px; font-size: 13px; color: var(--ink-soft); }
@@ -326,7 +330,17 @@
   /* kartu alarm: aura merah berdenyut (bold) */
   .svc.alarm { animation: critAura 1.1s ease-in-out infinite; border-color: rgba(255,93,108,.5) !important; }
   /* KPI saldo kritis: denyut halus angka */
-  .kpi-c .kv.crit { animation: sigWarn 1.6s ease-in-out infinite; }
+  .kpi-c .kv.crit { color: var(--bad); }
+  .kpi-c.kpi-crit { border-color: rgba(255,93,108,.55) !important; }
+  .kpi-c.kpi-warn { border-color: rgba(255,157,60,.42) !important; }
+  /* ring glow KE DALAM (tidak ter-clip overflow:hidden, tidak bentrok animasi muncul) */
+  .kpi-ring { position: absolute; inset: 0; border-radius: 10px; pointer-events: none; z-index: 1; }
+  .kpi-ring.crit { animation: ringCrit 1.1s ease-in-out infinite; }
+  .kpi-ring.warn { animation: ringWarn 1.9s ease-in-out infinite; }
+  @keyframes ringCrit { 0%,100% { box-shadow: inset 0 0 0 1px rgba(255,93,108,.45), inset 0 0 12px rgba(255,93,108,.18); } 50% { box-shadow: inset 0 0 0 2px rgba(255,93,108,.95), inset 0 0 24px rgba(255,93,108,.5); } }
+  @keyframes ringWarn { 0%,100% { box-shadow: inset 0 0 0 1px rgba(255,157,60,.28); } 50% { box-shadow: inset 0 0 0 1px rgba(255,157,60,.65), inset 0 0 16px rgba(255,157,60,.32); } }
+  .kpi-alarm { position: absolute; top: 11px; right: 11px; width: 7px; height: 7px; border-radius: 50%; background: var(--bad);
+    animation: sigCrit .8s steps(1,end) infinite, sigCritGlow .8s ease-in-out infinite; z-index: 3; }
 
   /* TOPBAR responsif — cegah meluber di HP */
   @media (max-width: 600px) {
@@ -709,7 +723,7 @@
         meta = parts.join(" · ");
       }
       var el = document.createElement("div");
-      el.className = "svc";
+      el.className = "svc" + (st === "down" ? " alarm" : "");
       el.style.animationDelay = (i * 40) + "ms";
       el.innerHTML =
         '<div class="svc-top">' +
@@ -797,17 +811,26 @@
     var balSub = rem == null ? t("kpi_unset") : (runout != null ? t("kpi_runout").replace("%d", Math.max(0, Math.round(runout))) : "");
     var perday = (ANTHROPIC && ANTHROPIC.daily_avg_usd != null) ? Number(ANTHROPIC.daily_avg_usd) : null;
 
-    function card(lab, valHtml, cls, sub, d) {
-      return '<div class="kpi-c" style="animation-delay:' + d + 's"><span class="kc t"></span><span class="kc b"></span>' +
+    function card(lab, valHtml, cls, sub, d, sev) {
+      var tcls = sev === "crit" ? " kpi-crit" : sev === "warn" ? " kpi-warn" : "";
+      var ring = sev === "crit" ? '<span class="kpi-ring crit"></span>' : sev === "warn" ? '<span class="kpi-ring warn"></span>' : "";
+      var pip = sev === "crit" ? '<span class="kpi-alarm"></span>' : "";
+      return '<div class="kpi-c' + tcls + '" style="animation-delay:' + d + 's">' + ring + pip + '<span class="kc t"></span><span class="kc b"></span>' +
         '<div class="kl">' + lab + '</div>' +
         '<div class="kv ' + (cls || "") + '">' + valHtml + '</div>' +
         '<div class="ks">' + (sub || "") + '</div></div>';
     }
+    // severity status layanan: ADA yang mati = kritis; ADA yang terganggu = moderate
+    var anyDown = false, anyDeg = false;
+    SERVICES.forEach(function (s2) { var r2 = STATUS_MAP[s2.key]; if (r2) { if (r2.status === "down") anyDown = true; else if (r2.status === "degraded") anyDeg = true; } });
+    var svcSev = anyDown ? "crit" : anyDeg ? "warn" : "";
+    var upSev = uptimeCls === "crit" ? "crit" : uptimeCls === "warn" ? "warn" : "";
+    var balSev = balCls === "crit" ? "crit" : balCls === "warn" ? "warn" : "";
     var html = "";
-    html += card(t("kpi_uptime"), '<span class="cu" data-to="' + uptimePct + '">0</span><small>%</small>', uptimeCls, up + " " + t("kpi_healthy"), .05);
-    html += card(t("kpi_services"), '<span class="cu" data-to="' + up + '">0</span>/' + total, "", (notUp === 0 ? t("kpi_allnodes") : notUp + " " + t("kpi_attention")), .11);
+    html += card(t("kpi_uptime"), '<span class="cu" data-to="' + uptimePct + '">0</span><small>%</small>', uptimeCls, up + " " + t("kpi_healthy"), .05, upSev);
+    html += card(t("kpi_services"), '<span class="cu" data-to="' + up + '">0</span>/' + total, "", (notUp === 0 ? t("kpi_allnodes") : notUp + " " + t("kpi_attention")), .11, svcSev);
     html += card(t("kpi_cost"), '~$<span class="cu" data-to="' + Math.round(monthlyUSD) + '">0</span>', "", t("kpi_fixed_word") + " $" + Math.round(recurringUSD) + " + AI ~$" + Math.round(anthroProj), .17);
-    html += card(t("kpi_balance"), rem == null ? "—" : '$<span class="cu" data-to="' + rem.toFixed(2) + '" data-dec="2">0</span>', balCls, balSub, .23);
+    html += card(t("kpi_balance"), rem == null ? "—" : '$<span class="cu" data-to="' + rem.toFixed(2) + '" data-dec="2">0</span>', balCls, balSub, .23, balSev);
     html += card(t("kpi_perday"), perday == null ? "—" : '$<span class="cu" data-to="' + perday.toFixed(2) + '" data-dec="2">0</span>', "", t("kpi_avg30"), .29);
     box.innerHTML = html;
     // jalankan count-up (hanya saat render pertama supaya tidak berkedip tiap refresh)
@@ -955,10 +978,11 @@
   }
 
   function dueClass(item, days) {
-    if (item.kind === "recurring_monthly") return "info";
+    // Biaya & tanggal langganan = tujuan inti KENDALI. Mendekati jatuh tempo = WAJIB alarm,
+    // termasuk tagihan rutin (gagal bayar -> layanan bisa disuspend -> sistem cacat).
     if (days == null) return "info";
-    if (days <= 7) return "bad";
-    if (days <= 30) return "warn";
+    if (days <= 7) return "bad";    // kritis (merah berkedip)
+    if (days <= 30) return "warn";  // moderate (mustard berdenyut)
     return "ok";
   }
 
@@ -1150,7 +1174,7 @@
       var jenis = it.kind === "recurring_monthly" ? t("c_billing") : t("c_expire");
       var ini = (it.label || "?").trim().charAt(0).toUpperCase();
       var el = document.createElement("div");
-      el.className = "svc";
+      el.className = "svc" + (cls === "bad" ? " alarm" : "");
       el.style.animationDelay = (i * 40) + "ms";
       el.innerHTML =
         '<div class="svc-top">' +
