@@ -777,14 +777,22 @@
     var bal = Number(ANTHROPIC.balance_amount);
     var ds = ANTHROPIC.daily_series;
     if (typeof ds === "string") { try { ds = JSON.parse(ds); } catch (e) { ds = null; } }
-    var spent = 0;
-    if (ds && ds.length && ANTHROPIC.balance_as_of) {
-      var asOfMs = Date.parse(ANTHROPIC.balance_as_of + "T00:00:00Z");
-      var daysSince = Math.max(0, Math.floor((Date.now() - asOfMs) / 86400000));
-      var n = Math.min(daysSince, ds.length);
-      for (var i = ds.length - n; i < ds.length; i++) { var v = Number(ds[i] && ds[i].v); if (!isNaN(v)) spent += v; }
+    var rem;
+    // Utamakan sisa yang dihitung petugas dari data biaya Anthropic (paling akurat & mengikuti
+    // pemakaian terlapor, termasuk hari berjalan). Fallback hanya bila petugas belum menghitung.
+    if (ANTHROPIC.remaining_usd != null) {
+      rem = Math.round(Number(ANTHROPIC.remaining_usd) * 100) / 100;
+    } else {
+      // Fallback (mis. saldo baru disimpan, petugas belum jalan): saldo - pemakaian sejak tanggal saldo, TERMASUK hari berjalan
+      var spent = 0;
+      if (ds && ds.length && ANTHROPIC.balance_as_of) {
+        var asOfMs = Date.parse(ANTHROPIC.balance_as_of + "T00:00:00Z");
+        var daysSince = Math.max(0, Math.floor((Date.now() - asOfMs) / 86400000));
+        var n = Math.min(daysSince + 1, ds.length); // +1 = ikut hitung hari berjalan
+        for (var i = ds.length - n; i < ds.length; i++) { var v = Number(ds[i] && ds[i].v); if (!isNaN(v)) spent += v; }
+      }
+      rem = Math.round((bal - spent) * 100) / 100;
     }
-    var rem = Math.round((bal - spent) * 100) / 100;
     var davg = ANTHROPIC.daily_avg_usd != null ? Number(ANTHROPIC.daily_avg_usd) : 0;
     var runout = davg > 0 ? Math.max(0, Math.round((rem / davg) * 10) / 10) : null;
     return { rem: rem, runout: runout };
@@ -1225,6 +1233,7 @@
       if (!ANTHROPIC) ANTHROPIC = {};
       ANTHROPIC.balance_amount = val;
       ANTHROPIC.balance_as_of = today;
+      ANTHROPIC.remaining_usd = val;
       msg.className = "msg"; msg.textContent = t("bal_saved");
       renderCosts(); renderKPI();
     } catch (e) {
