@@ -76,18 +76,21 @@ module.exports = async function (req, res) {
   } catch (e) { /* saldo opsional; abaikan bila gagal */ }
 
   // --- Rentang: 30 hari lalu (atau sejak tgl saldo bila lebih awal) -> AWAL HARI INI (UTC) ---
+  // Anthropic cost_report: bucket harian & limit MAKS 31 -> rentang maksimum 31 hari per panggilan.
   var now = new Date();
   var startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   var start30 = new Date(startOfToday.getTime() - 30 * 86400000);
+  var minStart = new Date(startOfToday.getTime() - 31 * 86400000);
   var startRange = start30;
-  if (balanceAsOfMs != null && !isNaN(balanceAsOfMs) && balanceAsOfMs < start30.getTime()) {
+  if (balanceAsOfMs != null && !isNaN(balanceAsOfMs) && balanceAsOfMs < startRange.getTime()) {
     startRange = new Date(balanceAsOfMs);
   }
+  var balanceStale = false;
+  if (startRange.getTime() < minStart.getTime()) { startRange = minStart; balanceStale = true; }
   var monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   var startIso = startRange.toISOString();
   var endIso = startOfToday.toISOString();
-  var dayCount = Math.ceil((startOfToday.getTime() - startRange.getTime()) / 86400000);
-  var limit = Math.min(Math.max(dayCount + 2, 31), 370);
+  var limit = 31;
 
   // --- Tarik cost_report ---
   var total30 = null, mtd = null, dailyAvg = null, monthlyProj = null, buckets = 0, sample = null;
@@ -159,6 +162,7 @@ module.exports = async function (req, res) {
     cost_since_balance: costSince,
     remaining_usd: remaining,
     runout_days: runoutDays,
+    balance_stale: balanceStale,
     buckets: buckets,
     saved: saved,
     saveErr: saveErr,
