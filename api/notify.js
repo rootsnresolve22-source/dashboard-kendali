@@ -65,6 +65,14 @@ async function sendWA(token, target, message) {
   }, TIMEOUT_MS);
 }
 
+async function sendEmail(key, from, to, subject, text) {
+  return fetchTimeout("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: from, to: [to], subject: subject, text: text })
+  }, TIMEOUT_MS);
+}
+
 module.exports = async function (req, res) {
   // --- Proteksi token ---
   var token = "", test = false;
@@ -76,6 +84,10 @@ module.exports = async function (req, res) {
 
   var FONNTE = process.env.FONNTE_TOKEN;
   var TARGET = process.env.ALERT_WA_TARGET;
+  var RESEND = process.env.RESEND_API_KEY;                       // opsional (cadangan email)
+  var MAIL_TO = process.env.ALERT_EMAIL_TO;                      // opsional
+  var MAIL_FROM = process.env.ALERT_EMAIL_FROM || "Dashboard Kendali <onboarding@resend.dev>";
+  var emailOn = !!(RESEND && MAIL_TO);
   var SUPA_URL = process.env.SUPABASE_URL;
   var SECRET = process.env.SUPABASE_SECRET_KEY;
   if (!FONNTE || !TARGET) { res.status(500).json({ ok: false, error: "missing FONNTE_TOKEN or ALERT_WA_TARGET" }); return; }
@@ -83,11 +95,18 @@ module.exports = async function (req, res) {
 
   // --- Mode tes: kirim 1 pesan tes lalu selesai ---
   if (test) {
+    var out = { ok: true, mode: "test", email_on: emailOn };
     try {
       var wr = await sendWA(FONNTE, TARGET, "🔔 Dashboard Kendali\n\nTes notifikasi berhasil. Sistem peringatan aktif. ✅");
-      var body = await wr.text();
-      res.status(200).json({ ok: wr.ok, mode: "test", wa_http: wr.status, wa_resp: body });
-    } catch (e) { res.status(200).json({ ok: false, mode: "test", error: (e && e.message) || String(e) }); }
+      out.wa_http = wr.status; out.wa_resp = await wr.text();
+    } catch (e) { out.ok = false; out.wa_error = (e && e.message) || String(e); }
+    if (emailOn) {
+      try {
+        var er = await sendEmail(RESEND, MAIL_FROM, MAIL_TO, "[Dashboard Kendali] Tes notifikasi", "Tes notifikasi email berhasil. Sistem peringatan cadangan (email) aktif.");
+        out.email_http = er.status; out.email_resp = await er.text();
+      } catch (e) { out.email_error = (e && e.message) || String(e); }
+    }
+    res.status(200).json(out);
     return;
   }
 
@@ -138,6 +157,29 @@ module.exports = async function (req, res) {
       messages.push("⏰ " + it.label + " kedaluwarsa " + sisa + " (" + fmtDateID(it.due_date) + "). Segera tindak lanjuti.");
       alertUpdates.push({ alert_key: akey, last_state: String(days), last_notified_at: nowIso });
     });
+
+    // 4b) evaluasi denyut nadi aplikasi (app_health) — alarm bila data berhenti mengalir
+    var health = await sbGet(SUPA_URL, SECRET, "app_health?select=table_key,label,state,hours_since,alarm_hours");
+    health.forEach(function (h) {
+      var akey = "app:" + h.table_key;
+      var prev = stateMap[akey] ? stateMap[akey].last_state : null;
+      var cur = h.state; // ok / warn / alarm / no_data / error
+      var isAlarm = (cur === "alarm");
+      var wasAlarm = (prev === "alarm");
+      if (isAlarm && !wasAlarm) {
+        // baru jadi alarm -> beri tahu
+        var lama = (h.hours_since != null) ? (h.hours_since >= 48 ? Math.round(h.hours_since / 24) + " hari" : Math.round(h.hours_since) + " jam") : "?";
+        messages.push("📉 " + (h.label || h.table_key) + ": tidak ada data baru " + lama + " (melewati batas). Cek apakah tim masih input atau aplikasi bermasalah.");
+        alertUpdates.push({ alert_key: akey, last_state: cur, last_notified_at: nowIso });
+      } else if (!isAlarm && wasAlarm && (cur === "ok" || cur === "warn")) {
+        // pulih dari alarm -> beri tahu sekali
+        messages.push("✅ " + (h.label || h.table_key) + ": data mengalir lagi (normal).");
+        alertUpdates.push({ alert_key: akey, last_state: cur, last_notified_at: nowIso });
+      } else if (cur !== prev) {
+        // transisi lain (mis. no_data->ok) cukup catat state, tanpa kirim pesan
+        baselineUpdates.push({ alert_key: akey, last_state: cur, last_notified_at: nowIso });
+      }
+    });
   } catch (e) {
     res.status(200).json({ ok: false, stage: "evaluate", error: (e && e.message) || String(e) });
     return;
@@ -148,15 +190,26 @@ module.exports = async function (req, res) {
   try { if (baselineUpdates.length) await sbUpsert(SUPA_URL, SECRET, "notif_state", baselineUpdates); }
   catch (e) { saveErr = "baseline: " + ((e && e.message) || String(e)); }
 
+  var emailSent = false, emailResp = null;
   if (messages.length) {
     var msg = "🔔 Dashboard Kendali\n\n" + messages.join("\n") + "\n\nBuka: project-ci2bd.vercel.app";
     try {
       var wr2 = await sendWA(FONNTE, TARGET, msg);
       sent = wr2.ok; waResp = await wr2.text();
-      if (sent && alertUpdates.length) await sbUpsert(SUPA_URL, SECRET, "notif_state", alertUpdates);
-    } catch (e) { saveErr = (saveErr ? saveErr + "; " : "") + "send: " + ((e && e.message) || String(e)); }
+    } catch (e) { saveErr = (saveErr ? saveErr + "; " : "") + "wa: " + ((e && e.message) || String(e)); }
+    if (emailOn) {
+      try {
+        var er2 = await sendEmail(RESEND, MAIL_FROM, MAIL_TO, "[Dashboard Kendali] Peringatan", messages.join("\n") + "\n\nBuka: https://project-ci2bd.vercel.app");
+        emailSent = er2.ok; emailResp = await er2.text();
+      } catch (e) { saveErr = (saveErr ? saveErr + "; " : "") + "email: " + ((e && e.message) || String(e)); }
+    }
+    // Simpan state bila MINIMAL satu jalur terkirim (jangan ulang peringatan yang sudah sampai)
+    if ((sent || emailSent) && alertUpdates.length) {
+      try { await sbUpsert(SUPA_URL, SECRET, "notif_state", alertUpdates); }
+      catch (e) { saveErr = (saveErr ? saveErr + "; " : "") + "state: " + ((e && e.message) || String(e)); }
+    }
   }
 
   res.setHeader("Cache-Control", "no-store");
-  res.status(200).json({ ok: true, changes: messages.length, sent: sent, messages: messages, wa_resp: waResp, saveErr: saveErr });
+  res.status(200).json({ ok: true, changes: messages.length, sent: sent, email_sent: emailSent, email_on: emailOn, messages: messages, wa_resp: waResp, email_resp: emailResp, saveErr: saveErr });
 };
